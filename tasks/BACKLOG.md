@@ -22,10 +22,10 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | INT-002 | Create a mockable Corsair integration boundary and tool result types                      | DONE    | INT-001          |
 | INT-003 | Implement Gmail read/search and message-detail access                                     | DONE    | INT-002, FND-003 |
 | INT-004 | Implement Gmail reply draft/send operations behind approval                               | BACKLOG | INT-003, AGT-004 |
-| INT-005 | Implement Calendar read/upcoming-event access                                             | BACKLOG | INT-002, FND-003 |
-| INT-006 | Implement Calendar availability lookup                                                    | BACKLOG | INT-005          |
+| INT-005 | Implement Calendar read/upcoming-event access                                             | DONE    | INT-002, FND-003 |
+| INT-006 | Implement Calendar availability lookup                                                    | DONE    | INT-005          |
 | INT-007 | Implement Calendar event creation and invitation details                                  | BACKLOG | INT-005, AGT-004 |
-| INT-008 | Add integration mocks, expired-session handling, rate-limit handling, and failure mapping | BACKLOG | INT-003, INT-005 |
+| INT-008 | Add integration mocks, expired-session handling, rate-limit handling, and failure mapping | DONE | INT-003, INT-005 |
 
 ## P0 — Shared Agent Foundation
 

@@ -1,4 +1,5 @@
 import { corsair } from "../corsair";
+import { AuthMissingError, PermissionRequiredError, CorsairClientError } from "corsair";
 
 export interface ToolCall {
   plugin: string;
@@ -10,6 +11,9 @@ export interface ToolResult {
   content: string;
   data?: any;
   error?: string;
+  isAuthMissing?: boolean;
+  isPermissionRequired?: boolean;
+  isRateLimited?: boolean;
 }
 
 export interface IntegrationService {
@@ -46,7 +50,21 @@ export class CorsairIntegrationService implements IntegrationService {
       return { content: "Success", data: result };
 
     } catch (error: any) {
-      return { content: "", error: error.message || String(error) };
+      const result: ToolResult = { content: "", error: error.message || String(error) };
+      
+      if (error instanceof AuthMissingError) {
+        result.isAuthMissing = true;
+      } else if (error instanceof PermissionRequiredError) {
+        result.isPermissionRequired = true;
+      } else if (error instanceof CorsairClientError) {
+        if (error.status === 401) {
+          result.isAuthMissing = true;
+        } else if (error.status === 429) {
+          result.isRateLimited = true;
+        }
+      }
+      
+      return result;
     }
   }
 }
