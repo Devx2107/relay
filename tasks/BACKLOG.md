@@ -6,13 +6,13 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 ## P0 — Foundation
 
-| ID      | Task                                                                              | Status  | Depends on |
-| ------- | --------------------------------------------------------------------------------- | ------- | ---------- |
-| FND-001 | Repository bootstrap, docs, task system, quality gates, CI                        | DONE    | —          |
-| FND-002 | Configure Supabase project, server client, migrations, and environment validation | DONE    | FND-001    |
-| FND-003 | Add Google OAuth with Supabase Auth and protected session handling                | DONE    | FND-002    |
-| FND-004 | Define minimal schema: users, conversations, messages, triage_items, agent_runs   | DONE    | FND-002    |
-| FND-005 | Add Row Level Security and authorization tests for user-owned data                | DONE    | FND-004    |
+| ID      | Task                                                                              | Status | Depends on |
+| ------- | --------------------------------------------------------------------------------- | ------ | ---------- |
+| FND-001 | Repository bootstrap, docs, task system, quality gates, CI                        | DONE   | —          |
+| FND-002 | Configure Supabase project, server client, migrations, and environment validation | DONE   | FND-001    |
+| FND-003 | Add Google OAuth with Supabase Auth and protected session handling                | DONE   | FND-002    |
+| FND-004 | Define minimal schema: users, conversations, messages, triage_items, agent_runs   | DONE   | FND-002    |
+| FND-005 | Add Row Level Security and authorization tests for user-owned data                | DONE   | FND-004    |
 
 ## P0 — Integration Boundary
 
@@ -25,21 +25,21 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | INT-005 | Implement Calendar read/upcoming-event access                                             | DONE    | INT-002, FND-003 |
 | INT-006 | Implement Calendar availability lookup                                                    | DONE    | INT-005          |
 | INT-007 | Implement Calendar event creation and invitation details                                  | BACKLOG | INT-005, AGT-004 |
-| INT-008 | Add integration mocks, expired-session handling, rate-limit handling, and failure mapping | DONE | INT-003, INT-005 |
+| INT-008 | Add integration mocks, expired-session handling, rate-limit handling, and failure mapping | DONE    | INT-003, INT-005 |
 
 ## P0 — Shared Agent Foundation
 
-| ID      | Task                                                                                    | Status  | Depends on       |
-| ------- | --------------------------------------------------------------------------------------- | ------- | ---------------- |
-| AGT-001 | Define agent-run, intent, tool-call, status, and user-facing error contracts            | BACKLOG | FND-004          |
-| AGT-002 | Add deterministic intent parsing for supported commands and validated structured output | BACKLOG | AGT-001          |
-| AGT-003 | Add Groq adapter with bounded prompts, free-model configuration, and graceful fallback  | BACKLOG | AGT-001          |
-| AGT-004 | Build shared read/write tool registry with server-side write classification             | BACKLOG | AGT-001, INT-002 |
-| AGT-005 | Implement shared loop: parse → plan → read → propose → approve → execute → verify       | BACKLOG | AGT-002, AGT-004 |
-| AGT-006 | Persist pending actions and enforce approval on the server, not only in the UI          | BACKLOG | FND-004, AGT-005 |
-| AGT-007 | Add action verification and safe, user-readable error handling                          | BACKLOG | AGT-005, INT-008 |
-| AGT-008 | Add conversational state for references within the current session                      | BACKLOG | FND-004, AGT-005 |
-| AGT-009 | Add agent progress/status events without exposing chain-of-thought                      | BACKLOG | AGT-005          |
+| ID      | Task                                                                                    | Status      | Depends on       |
+| ------- | --------------------------------------------------------------------------------------- | ----------- | ---------------- |
+| AGT-001 | Define agent-run, intent, tool-call, status, and user-facing error contracts            | DONE        | FND-004          |
+| AGT-002 | Add deterministic intent parsing for supported commands and validated structured output | DONE        | AGT-001          |
+| AGT-003 | Add Groq adapter with bounded prompts, free-model configuration, and graceful fallback  | DONE        | AGT-001          |
+| AGT-004 | Build shared read/write tool registry with server-side write classification             | DONE        | AGT-001, INT-002 |
+| AGT-005 | Implement shared loop: parse → plan → read → propose → approve → execute → verify       | BACKLOG     | AGT-002, AGT-004 |
+| AGT-006 | Persist pending actions and enforce approval on the server, not only in the UI          | BACKLOG     | FND-004, AGT-005 |
+| AGT-007 | Add action verification and safe, user-readable error handling                          | BACKLOG     | AGT-005, INT-008 |
+| AGT-008 | Add conversational state for references within the current session                      | BACKLOG     | FND-004, AGT-005 |
+| AGT-009 | Add agent progress/status events without exposing chain-of-thought                      | BACKLOG     | AGT-005          |
 
 ## P0 — Triage
 

@@ -1,0 +1,181 @@
+import type { UserFacingError } from "./contracts";
+
+export const DEFAULT_GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+export const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
+
+const DEFAULT_MAX_INPUT_CHARACTERS = 6000;
+const DEFAULT_MAX_COMPLETION_TOKENS = 256;
+const DEFAULT_TIMEOUT_MS = 10000;
+const MAX_MESSAGES = 8;
+const MAX_MESSAGE_CHARACTERS = 4000;
+
+export interface GroqMessage {
+  role: "system" | "user";
+  content: string;
+}
+
+export interface GroqAdapterConfig {
+  apiKey?: string;
+  model?: string;
+  endpoint?: string;
+  maxInputCharacters?: number;
+  maxCompletionTokens?: number;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
+export interface GroqCompletionResult {
+  text: string;
+  usedFallback: boolean;
+  model?: string;
+  error?: UserFacingError;
+}
+
+interface GroqResponse {
+  choices?: Array<{ message?: { content?: unknown } }>;
+}
+
+function fallbackResult(fallback: string, error?: UserFacingError): GroqCompletionResult {
+  return { text: fallback, usedFallback: true, error };
+}
+
+function providerError(status: number): UserFacingError {
+  if (status === 401 || status === 403) {
+    return {
+      code: "authentication_required",
+      message: "The language assistant is not authenticated.",
+      retryable: false,
+      action: "connect_integration",
+    };
+  }
+  if (status === 429) {
+    return {
+      code: "rate_limited",
+      message: "The language assistant is temporarily rate-limited.",
+      retryable: true,
+      action: "retry",
+    };
+  }
+  return {
+    code: "integration_unavailable",
+    message: "The language assistant is temporarily unavailable.",
+    retryable: true,
+    action: "retry",
+  };
+}
+
+function invalidPrompt(message: string): UserFacingError {
+  return { code: "invalid_request", message, retryable: false };
+}
+
+export class GroqAdapter {
+  private readonly config: Required<
+    Pick<
+      GroqAdapterConfig,
+      | "model"
+      | "endpoint"
+      | "maxInputCharacters"
+      | "maxCompletionTokens"
+      | "timeoutMs"
+      | "fetchImpl"
+    >
+  > & { apiKey?: string };
+
+  constructor(config: GroqAdapterConfig = {}) {
+    this.config = {
+      apiKey: config.apiKey ?? process.env.GROQ_API_KEY,
+      model: config.model ?? process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL,
+      endpoint: config.endpoint ?? DEFAULT_GROQ_ENDPOINT,
+      maxInputCharacters: config.maxInputCharacters ?? DEFAULT_MAX_INPUT_CHARACTERS,
+      maxCompletionTokens: config.maxCompletionTokens ?? DEFAULT_MAX_COMPLETION_TOKENS,
+      timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      fetchImpl: config.fetchImpl ?? fetch,
+    };
+  }
+
+  async complete(
+    messages: readonly GroqMessage[],
+    fallback: string,
+  ): Promise<GroqCompletionResult> {
+    const validationError = this.validateMessages(messages);
+    if (validationError) return fallbackResult(fallback, validationError);
+    if (!this.config.apiKey?.trim()) {
+      return fallbackResult(fallback, {
+        code: "integration_unavailable",
+        message: "The optional language assistant is not configured.",
+        retryable: false,
+      });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
+
+    try {
+      const response = await this.config.fetchImpl(this.config.endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: this.config.model,
+          messages,
+          max_completion_tokens: this.config.maxCompletionTokens,
+          n: 1,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) return fallbackResult(fallback, providerError(response.status));
+
+      const payload = (await response.json()) as GroqResponse;
+      const text = payload.choices?.[0]?.message?.content;
+      if (typeof text !== "string" || text.trim().length === 0) {
+        return fallbackResult(fallback, {
+          code: "integration_unavailable",
+          message: "The language assistant returned an unusable response.",
+          retryable: true,
+          action: "retry",
+        });
+      }
+      return { text: text.trim(), usedFallback: false, model: this.config.model };
+    } catch (error) {
+      const isTimeout = error instanceof Error && error.name === "AbortError";
+      return fallbackResult(fallback, {
+        code: "integration_unavailable",
+        message: isTimeout
+          ? "The language assistant took too long to respond."
+          : "The language assistant is temporarily unavailable.",
+        retryable: true,
+        action: "retry",
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private validateMessages(messages: readonly GroqMessage[]): UserFacingError | undefined {
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
+      return invalidPrompt(`Provide between 1 and ${MAX_MESSAGES} prompt messages.`);
+    }
+
+    let totalCharacters = 0;
+    for (const message of messages) {
+      if (
+        !message ||
+        (message.role !== "system" && message.role !== "user") ||
+        typeof message.content !== "string" ||
+        message.content.trim().length === 0 ||
+        message.content.length > MAX_MESSAGE_CHARACTERS
+      ) {
+        return invalidPrompt("Prompt messages must be bounded system or user text.");
+      }
+      totalCharacters += message.content.length;
+    }
+
+    if (totalCharacters > this.config.maxInputCharacters) {
+      return invalidPrompt("The language-assistant prompt is too long.");
+    }
+    return undefined;
+  }
+}
