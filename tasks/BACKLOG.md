@@ -21,10 +21,10 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | INT-001 | Inspect and document the actual Corsair/MCP API and authentication contract               | DONE    | FND-001          |
 | INT-002 | Create a mockable Corsair integration boundary and tool result types                      | DONE    | INT-001          |
 | INT-003 | Implement Gmail read/search and message-detail access                                     | DONE    | INT-002, FND-003 |
-| INT-004 | Implement Gmail reply draft/send operations behind approval                               | BACKLOG | INT-003, AGT-004 |
+| INT-004 | Implement Gmail reply draft/send operations behind approval                               | DONE    | INT-003, AGT-004 |
 | INT-005 | Implement Calendar read/upcoming-event access                                             | DONE    | INT-002, FND-003 |
 | INT-006 | Implement Calendar availability lookup                                                    | DONE    | INT-005          |
-| INT-007 | Implement Calendar event creation and invitation details                                  | BACKLOG | INT-005, AGT-004 |
+| INT-007 | Implement Calendar event creation and invitation details                                  | DONE    | INT-005, AGT-004 |
 | INT-008 | Add integration mocks, expired-session handling, rate-limit handling, and failure mapping | DONE    | INT-003, INT-005 |
 
 ## P0 — Shared Agent Foundation
@@ -35,11 +35,11 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | AGT-002 | Add deterministic intent parsing for supported commands and validated structured output | DONE        | AGT-001          |
 | AGT-003 | Add Groq adapter with bounded prompts, free-model configuration, and graceful fallback  | DONE        | AGT-001          |
 | AGT-004 | Build shared read/write tool registry with server-side write classification             | DONE        | AGT-001, INT-002 |
-| AGT-005 | Implement shared loop: parse → plan → read → propose → approve → execute → verify       | BACKLOG     | AGT-002, AGT-004 |
-| AGT-006 | Persist pending actions and enforce approval on the server, not only in the UI          | BACKLOG     | FND-004, AGT-005 |
-| AGT-007 | Add action verification and safe, user-readable error handling                          | BACKLOG     | AGT-005, INT-008 |
-| AGT-008 | Add conversational state for references within the current session                      | BACKLOG     | FND-004, AGT-005 |
-| AGT-009 | Add agent progress/status events without exposing chain-of-thought                      | BACKLOG     | AGT-005          |
+| AGT-005 | Implement shared loop: parse → plan → read → propose → approve → execute → verify       | DONE        | AGT-002, AGT-004 |
+| AGT-006 | Persist pending actions and enforce approval on the server, not only in the UI          | DONE        | FND-004, AGT-005 |
+| AGT-007 | Add action verification and safe, user-readable error handling                          | DONE        | AGT-005, INT-008 |
+| AGT-008 | Add conversational state for references within the current session                      | DONE        | FND-004, AGT-005 |
+| AGT-009 | Add agent progress/status events without exposing chain-of-thought                      | DONE        | AGT-005          |
 
 ## P0 — Triage
 

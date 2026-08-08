@@ -68,33 +68,37 @@ export const TOOL_DEFINITIONS = [
   {
     id: "gmail.reply_draft",
     plugin: "gmail",
+    action: "api.drafts.create",
     operation: "write",
-    availability: "planned",
-    description: "Create an email reply draft after the write integration is verified.",
+    availability: "available",
+    description: "Create an email reply draft.",
     argumentNames: ["threadId", "body"],
   },
   {
     id: "gmail.send",
     plugin: "gmail",
+    action: "api.messages.send",
     operation: "write",
-    availability: "planned",
-    description: "Send an email after the write integration and approval flow are verified.",
+    availability: "available",
+    description: "Send an email.",
     argumentNames: ["threadId", "body"],
   },
   {
     id: "calendar.create_event",
     plugin: "googlecalendar",
+    action: "api.events.create",
     operation: "write",
-    availability: "planned",
-    description: "Create a calendar event after the write integration is verified.",
+    availability: "available",
+    description: "Create a calendar event.",
     argumentNames: ["summary", "start", "end", "attendees"],
   },
   {
     id: "calendar.modify_event",
     plugin: "googlecalendar",
+    action: "api.events.update",
     operation: "write",
-    availability: "planned",
-    description: "Modify a calendar event after the write integration is verified.",
+    availability: "available",
+    description: "Modify a calendar event.",
     argumentNames: ["eventId", "changes"],
   },
 ] as const satisfies readonly ToolDefinition[];
@@ -164,7 +168,7 @@ export class ToolRegistry {
     return definition;
   }
 
-  async execute(request: RegistryToolCall): Promise<AgentToolResult> {
+  async execute(request: RegistryToolCall, approved: boolean = false): Promise<AgentToolResult> {
     const definition = this.getDefinition(request.toolId);
     if (request.operation !== definition.operation) {
       throw new ToolRegistryError(
@@ -184,7 +188,7 @@ export class ToolRegistry {
       };
     }
 
-    if (definition.operation === "write") {
+    if (definition.operation === "write" && !approved) {
       return {
         toolCallId: request.id,
         ok: false,

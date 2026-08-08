@@ -58,4 +58,58 @@ describe("CalendarService", () => {
       items: [{ id: "alice@example.com" }]
     });
   });
+
+  it("createEvent sends the correct ToolCall", async () => {
+    mockIntegration.mockResponse("googlecalendar", "api.events.create", {
+      content: "Success",
+      data: { id: "e2" }
+    });
+
+    const start = new Date("2026-08-08T10:00:00Z").toISOString();
+    const end = new Date("2026-08-08T11:00:00Z").toISOString();
+    const result = await calendar.createEvent("tenant-123", "Sync", start, end, ["bob@test.com"]);
+
+    expect(result.data.id).toBe("e2");
+
+    const calls = mockIntegration.getCalls();
+    expect(calls.length).toBe(1);
+    expect(calls[0].call.action).toBe("api.events.create");
+    expect(calls[0].call.args).toEqual({
+      event: {
+        summary: "Sync",
+        start: { dateTime: start },
+        end: { dateTime: end },
+        attendees: [{ email: "bob@test.com" }]
+      }
+    });
+  });
+
+  it("modifyEvent fetches and sends the correct ToolCall", async () => {
+    mockIntegration.mockResponse("googlecalendar", "api.events.get", {
+      content: "Success",
+      data: { id: "e3", summary: "Old Sync", attendees: [] }
+    });
+    mockIntegration.mockResponse("googlecalendar", "api.events.update", {
+      content: "Success",
+      data: { id: "e3", summary: "New Sync" }
+    });
+
+    const result = await calendar.modifyEvent("tenant-123", "e3", { summary: "New Sync" });
+    expect(result.data.summary).toBe("New Sync");
+
+    const calls = mockIntegration.getCalls();
+    expect(calls.length).toBe(2);
+    expect(calls[0].call.action).toBe("api.events.get");
+    expect(calls[0].call.args).toEqual({ id: "e3" });
+
+    expect(calls[1].call.action).toBe("api.events.update");
+    expect(calls[1].call.args).toEqual({
+      id: "e3",
+      event: {
+        id: "e3",
+        summary: "New Sync",
+        attendees: []
+      }
+    });
+  });
 });

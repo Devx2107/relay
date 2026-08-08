@@ -6,12 +6,37 @@ export const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
 const DEFAULT_MAX_INPUT_CHARACTERS = 6000;
 const DEFAULT_MAX_COMPLETION_TOKENS = 256;
 const DEFAULT_TIMEOUT_MS = 10000;
-const MAX_MESSAGES = 8;
+const MAX_MESSAGES = 20;
 const MAX_MESSAGE_CHARACTERS = 4000;
 
+export interface GroqTool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: "object";
+      properties: Record<string, unknown>;
+      required?: string[];
+    };
+  };
+}
+
+export interface GroqToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 export interface GroqMessage {
-  role: "system" | "user";
-  content: string;
+  role: "system" | "user" | "assistant" | "tool";
+  content?: string | null;
+  tool_calls?: GroqToolCall[];
+  tool_call_id?: string;
+  name?: string;
 }
 
 export interface GroqAdapterConfig {
@@ -25,14 +50,15 @@ export interface GroqAdapterConfig {
 }
 
 export interface GroqCompletionResult {
-  text: string;
+  text?: string;
+  toolCalls?: GroqToolCall[];
   usedFallback: boolean;
   model?: string;
   error?: UserFacingError;
 }
 
 interface GroqResponse {
-  choices?: Array<{ message?: { content?: unknown } }>;
+  choices?: Array<{ message?: { content?: string | null; tool_calls?: GroqToolCall[] } }>;
 }
 
 function fallbackResult(fallback: string, error?: UserFacingError): GroqCompletionResult {
@@ -96,6 +122,7 @@ export class GroqAdapter {
   async complete(
     messages: readonly GroqMessage[],
     fallback: string,
+    tools?: readonly GroqTool[],
   ): Promise<GroqCompletionResult> {
     const validationError = this.validateMessages(messages);
     if (validationError) return fallbackResult(fallback, validationError);
@@ -122,6 +149,7 @@ export class GroqAdapter {
           messages,
           max_completion_tokens: this.config.maxCompletionTokens,
           n: 1,
+          ...(tools && tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
         }),
         signal: controller.signal,
       });
@@ -129,8 +157,8 @@ export class GroqAdapter {
       if (!response.ok) return fallbackResult(fallback, providerError(response.status));
 
       const payload = (await response.json()) as GroqResponse;
-      const text = payload.choices?.[0]?.message?.content;
-      if (typeof text !== "string" || text.trim().length === 0) {
+      const message = payload.choices?.[0]?.message;
+      if (!message || (typeof message.content !== "string" && !message.tool_calls)) {
         return fallbackResult(fallback, {
           code: "integration_unavailable",
           message: "The language assistant returned an unusable response.",
@@ -138,7 +166,12 @@ export class GroqAdapter {
           action: "retry",
         });
       }
-      return { text: text.trim(), usedFallback: false, model: this.config.model };
+      return {
+        text: message.content ? message.content.trim() : undefined,
+        toolCalls: message.tool_calls,
+        usedFallback: false,
+        model: this.config.model,
+      };
     } catch (error) {
       const isTimeout = error instanceof Error && error.name === "AbortError";
       return fallbackResult(fallback, {
@@ -161,16 +194,19 @@ export class GroqAdapter {
 
     let totalCharacters = 0;
     for (const message of messages) {
-      if (
-        !message ||
-        (message.role !== "system" && message.role !== "user") ||
-        typeof message.content !== "string" ||
-        message.content.trim().length === 0 ||
-        message.content.length > MAX_MESSAGE_CHARACTERS
-      ) {
-        return invalidPrompt("Prompt messages must be bounded system or user text.");
+      if (!message || !["system", "user", "assistant", "tool"].includes(message.role)) {
+        return invalidPrompt("Invalid message role.");
       }
-      totalCharacters += message.content.length;
+      const contentLen = typeof message.content === "string" ? message.content.length : 0;
+      if (contentLen > MAX_MESSAGE_CHARACTERS) {
+        return invalidPrompt("Message content is too long.");
+      }
+      totalCharacters += contentLen;
+      if (message.tool_calls) {
+        for (const tc of message.tool_calls) {
+          totalCharacters += tc.function.arguments.length;
+        }
+      }
     }
 
     if (totalCharacters > this.config.maxInputCharacters) {

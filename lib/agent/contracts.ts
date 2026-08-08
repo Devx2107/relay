@@ -1,5 +1,5 @@
-export type JsonPrimitive = string | number | boolean | null;
-export type SafeMetadata = Record<string, JsonPrimitive>;
+export type JsonPrimitive = string | number | boolean | null | { [key: string]: JsonPrimitive } | JsonPrimitive[];
+export type SafeMetadata = Record<string, JsonPrimitive | any>;
 
 export type AgentRunStatus =
   "queued" | "running" | "waiting_for_approval" | "completed" | "failed" | "cancelled";

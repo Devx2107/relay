@@ -102,14 +102,22 @@ describe("ToolRegistry", () => {
   it("keeps planned tools unavailable and does not invent an action path", async () => {
     const integration = new MockIntegrationService();
     const execute = vi.spyOn(integration, "executeTool");
-    const registry = new ToolRegistry(integration);
+    const plannedDefinition: ToolDefinition = {
+      id: "test.planned_write",
+      plugin: "test",
+      operation: "write",
+      availability: "planned",
+      description: "Planned test",
+      argumentNames: [],
+    };
+    const registry = new ToolRegistry(integration, [plannedDefinition]);
 
     const result = await registry.execute({
       id: "call-planned",
       tenantId: "tenant-1",
-      toolId: "calendar.create_event",
+      toolId: "test.planned_write",
       operation: "write",
-      args: { summary: "Planning" },
+      args: {},
     });
 
     expect(result).toMatchObject({
@@ -117,7 +125,7 @@ describe("ToolRegistry", () => {
       error: { code: "integration_unavailable" },
       failure: { code: "integration_error" },
     });
-    expect(registry.getDefinition("calendar.create_event").action).toBeUndefined();
+    expect(registry.getDefinition("test.planned_write").action).toBeUndefined();
     expect(execute).not.toHaveBeenCalled();
   });
 

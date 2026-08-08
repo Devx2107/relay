@@ -59,7 +59,10 @@ function isUnsupportedAction(command: string): boolean {
   return /\b(send|reply|archive|delete|ignore|snooze|cancel)\b/i.test(command);
 }
 
-export function parseCommand(input: unknown): IntentParseResult {
+export function parseCommand(
+  input: unknown,
+  history: { role: string; content: string }[] = [],
+): IntentParseResult {
   if (typeof input !== "string") {
     return invalidRequest("Enter a triage or scheduling request.");
   }
@@ -98,6 +101,37 @@ export function parseCommand(input: unknown): IntentParseResult {
           parameters: { source: triageSource(command), limit: triageLimit(command) },
         }),
       };
+    }
+
+    // Attempt to inherit intent from history
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i];
+      if (msg.role === "user") {
+        const prevParse = parseCommand(msg.content, []);
+        if (prevParse.ok) {
+          if (prevParse.intent.kind === "schedule") {
+            return {
+              ok: true,
+              intent: parseAgentIntent({
+                kind: "schedule",
+                parameters: { request: command, attendees: uniqueEmails(command) },
+              }),
+            };
+          }
+          if (prevParse.intent.kind === "triage") {
+            return {
+              ok: true,
+              intent: parseAgentIntent({
+                kind: "triage",
+                parameters: {
+                  source: triageSource(command) === "all" ? prevParse.intent.parameters.source : triageSource(command),
+                  limit: triageLimit(command) ?? prevParse.intent.parameters.limit,
+                },
+              }),
+            };
+          }
+        }
+      }
     }
   } catch {
     return invalidRequest(

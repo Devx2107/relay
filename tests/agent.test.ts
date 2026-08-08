@@ -111,6 +111,34 @@ describe("agent contracts", () => {
     });
   });
 
+  it("inherits intent from history if explicit keywords are missing", () => {
+    const history = [
+      { role: "user", content: "schedule a meeting" },
+      { role: "assistant", content: "Sure, what time?" }
+    ];
+    
+    expect(parseCommand("what about tomorrow?", history)).toEqual({
+      ok: true,
+      intent: {
+        kind: "schedule",
+        parameters: { request: "what about tomorrow?", attendees: undefined },
+      },
+    });
+
+    const triageHistory = [
+      { role: "user", content: "triage my emails" },
+      { role: "assistant", content: "You have 5 unread emails." }
+    ];
+
+    expect(parseCommand("show me the top 2", triageHistory)).toEqual({
+      ok: true,
+      intent: {
+        kind: "triage",
+        parameters: { source: "email", limit: 2 },
+      },
+    });
+  });
+
   it("rejects unsupported, ambiguous, empty, and oversized commands", () => {
     expect(parseCommand("send an email")).toMatchObject({
       ok: false,
