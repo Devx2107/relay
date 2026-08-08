@@ -2,3 +2,4 @@
 !.env.example
 /.next
 /node_modules
+*.tsbuildinfo

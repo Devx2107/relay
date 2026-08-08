@@ -1,4 +1,4 @@
-# Flow Backlog
+# Relay Backlog
 
 Statuses: `BACKLOG`, `READY`, `IN_PROGRESS`, `BLOCKED`, `REVIEW`, `DONE`.
 
@@ -9,8 +9,8 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | ID      | Task                                                                              | Status  | Depends on |
 | ------- | --------------------------------------------------------------------------------- | ------- | ---------- |
 | FND-001 | Repository bootstrap, docs, task system, quality gates, CI                        | DONE    | —          |
-| FND-002 | Configure Supabase project, server client, migrations, and environment validation | READY   | FND-001    |
-| FND-003 | Add Google OAuth with Supabase Auth and protected session handling                | BACKLOG | FND-002    |
+| FND-002 | Configure Supabase project, server client, migrations, and environment validation | DONE    | FND-001    |
+| FND-003 | Add Google OAuth with Supabase Auth and protected session handling                | DONE    | FND-002    |
 | FND-004 | Define minimal schema: users, conversations, messages, triage_items, agent_runs   | BACKLOG | FND-002    |
 | FND-005 | Add Row Level Security and authorization tests for user-owned data                | BACKLOG | FND-004    |
 
@@ -18,8 +18,8 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 | ID      | Task                                                                                      | Status  | Depends on       |
 | ------- | ----------------------------------------------------------------------------------------- | ------- | ---------------- |
-| INT-001 | Inspect and document the actual Corsair/MCP API and authentication contract               | BACKLOG | FND-001          |
-| INT-002 | Create a mockable Corsair integration boundary and tool result types                      | BACKLOG | INT-001          |
+| INT-001 | Inspect and document the actual Corsair/MCP API and authentication contract               | DONE    | FND-001          |
+| INT-002 | Create a mockable Corsair integration boundary and tool result types                      | READY   | INT-001          |
 | INT-003 | Implement Gmail read/search and message-detail access                                     | BACKLOG | INT-002, FND-003 |
 | INT-004 | Implement Gmail reply draft/send operations behind approval                               | BACKLOG | INT-003, AGT-004 |
 | INT-005 | Implement Calendar read/upcoming-event access                                             | BACKLOG | INT-002, FND-003 |

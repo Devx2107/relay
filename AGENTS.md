@@ -2,7 +2,7 @@
 
 ## Scope
 
-Flow is a 12-hour hackathon project focused on one command console with two capabilities: triage and scheduling. Keep the system small, integration-first, and testable.
+Relay is a 12-hour hackathon project focused on one command console with two capabilities: triage and scheduling. Keep the system small, integration-first, and testable.
 
 ## Required task protocol
 

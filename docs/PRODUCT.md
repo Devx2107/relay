@@ -1,6 +1,6 @@
 # Product
 
-Flow is an AI-native command console for understanding what needs attention and executing email/calendar workflows. The MVP has one interface and two capabilities: proactive triage and scheduling.
+Relay is an AI-native command console for understanding what needs attention and executing email/calendar workflows. The MVP has one interface and two capabilities: proactive triage and scheduling.
 
 ## MVP
 
@@ -8,4 +8,4 @@ Google authentication, Gmail and Calendar integration through Corsair, a convers
 
 ## Non-goals
 
-Flow is not a Gmail/Calendar clone, mobile app, autonomous sender, multi-agent system, n8n workflow, or complex ML platform. Vector search and advanced automation are stretch goals.
+Relay is not a Gmail/Calendar clone, mobile app, autonomous sender, multi-agent system, n8n workflow, or complex ML platform. Vector search and advanced automation are stretch goals.

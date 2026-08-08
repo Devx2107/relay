@@ -1,5 +1,5 @@
 {
-  "name": "flow",
+  "name": "relay",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,17 +14,26 @@
     "verify": "npm run format && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "next": "^15.5.0",
+    "@corsair-dev/cli": "^0.1.19",
+    "@corsair-dev/gmail": "^0.1.4",
+    "@corsair-dev/googlecalendar": "^0.1.5",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.2",
+    "corsair": "^0.1.113",
+    "dotenv": "^17.4.2",
+    "next": "^16.3.0",
+    "pg": "^8.22.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.21.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.6.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^15.5.0",
+    "eslint-config-next": "^16.3.0",
     "prettier": "^3.6.0",
     "typescript": "^5.0.0",
     "vitest": "^3.2.0"

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Flow",
-  description: "Engineering bootstrap for Flow",
+  title: "Relay",
+  description: "Engineering bootstrap for Relay",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

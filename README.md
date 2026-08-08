@@ -1,6 +1,6 @@
-# Flow
+# Relay
 
-Flow is an AI-native command console for email triage and calendar scheduling. This repository is currently in the engineering bootstrap phase; no product integrations or workflows are implemented yet.
+Relay is an AI-native command console for email triage and calendar scheduling. The server-side Corsair boundary for Gmail and Google Calendar is now scaffolded; product workflows and authenticated user sessions are not implemented yet.
 
 ## Quick start
 
@@ -21,4 +21,4 @@ Run the full local quality gate with `npm run verify`.
 - Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the proposed design.
 - Track work in [tasks/BACKLOG.md](tasks/BACKLOG.md) and [tasks/CURRENT.md](tasks/CURRENT.md).
 
-Feature implementation is intentionally paused until the proposed structure and workflow are approved.
+Product workflow implementation remains paused until the proposed structure, authentication, and approval boundaries are approved.
