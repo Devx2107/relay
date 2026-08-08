@@ -44,14 +44,14 @@ The agent needs a simplified interface to retrieve unread threads and email cont
 
 ## Verification
 
-- [ ] Changed files formatted with Prettier.
-- [ ] Tests passed.
+- [x] Changed files formatted with Prettier.
+- [x] Tests passed.
 
 ## Review
 
-- [ ] Task changes are scoped to Gmail read integration.
-- [ ] No regressions found in targeted checks.
+- [x] Task changes are scoped to Gmail read integration.
+- [x] No regressions found in targeted checks.
 
 ## Status
 
-IN_PROGRESS — Developing Gmail read wrapper logic.
+DONE — Gmail read boundary built and tested.
