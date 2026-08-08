@@ -2,48 +2,63 @@
 
 ## Task
 
-Bootstrap the Flow engineering environment.
+FND-002 — Configure Supabase project foundation and environment validation.
 
 ## Goal
 
-Create the documented, testable project foundation without implementing product features.
+Prepare the server-side Supabase foundation required for Google authentication and user-owned Flow data.
 
 ## Context
 
-This is a 12-hour hackathon project. The bootstrap specification requires an approval gate before feature development.
+The bootstrap is complete. The Flow specification requires Supabase Auth, Google OAuth, Supabase PostgreSQL, simple user-scoped entities, and no service-role credentials in browser code. This task is the first post-bootstrap task in the dependency order.
 
 ## Requirements
 
-- Establish Next.js/TypeScript tooling, quality gates, tests, build, CI, and secret protection.
-- Create AGENTS.md, docs, backlog, and task templates.
-- Do not implement Gmail, Calendar, Corsair, Groq, triage, scheduling, or the actual Flow UI.
+- Inspect the repository and choose the minimal supported Supabase server/browser client split.
+- Define the initial migration boundary without adding unnecessary product tables.
+- Validate required environment variables without requiring real credentials during build.
+- Keep secrets server-only and document local setup.
+- Do not implement Google OAuth until this foundation is reviewed and complete.
 
 ## Acceptance Criteria
 
-- Repository installs and `npm run verify` passes.
-- Proposed structure and workflow are presented for approval.
+- Supabase URL and public anon key are represented in `.env.example` and validated at the correct runtime boundary.
+- Server-only secrets, if needed, are clearly separated from browser-safe variables.
+- A documented migration approach exists for `users`, `conversations`, `messages`, `triage_items`, and `agent_runs`.
+- Build and tests work without live Supabase credentials.
+- No Corsair, Gmail, Calendar, Groq, triage, scheduling, or autonomous write behavior is implemented in this task.
 
 ## Relevant Files
 
-- `package.json`, `AGENTS.md`, `docs/`, `tasks/`, `.github/workflows/ci.yml`
+- `package.json`
+- `.env.example`
+- `docs/SETUP.md`
+- `docs/DATABASE.md`
+- `docs/SECURITY.md`
+- `supabase/`
+- `lib/`
 
 ## Constraints
 
-- Keep the foundation minimal and reversible.
+- Follow least privilege and never expose a service-role key to browser code.
+- Keep the schema and client abstraction minimal.
+- Do not invent Supabase SDK behavior; verify it against the selected SDK documentation.
 
 ## Plan
 
-1. Create project tooling and placeholder build target.
-2. Add documentation, task management, and CI.
-3. Run all quality gates and present the approval gate.
+1. Inspect current dependencies and confirm the Supabase SDK/client approach.
+2. Add environment validation and the minimal server/browser client boundary.
+3. Add the initial migration structure and security notes.
+4. Add focused tests for configuration behavior.
+5. Run formatting, lint, typecheck, tests, and build; update documentation.
 
 ## Verification
 
-- [x] Formatting
-- [x] Lint
-- [x] Typecheck
-- [x] Tests
-- [x] Build
+- [ ] Formatting
+- [ ] Lint
+- [ ] Typecheck
+- [ ] Tests
+- [ ] Build
 
 ## Review
 
@@ -55,4 +70,4 @@ This is a 12-hour hackathon project. The bootstrap specification requires an app
 
 ## Status
 
- READY_FOR_APPROVAL
+READY
