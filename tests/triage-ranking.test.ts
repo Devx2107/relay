@@ -112,6 +112,7 @@ describe("triage ranking", () => {
     });
     expect(candidate.score).toBeLessThanOrEqual(100);
     expect(candidate.urgency).toBe("high");
+    expect(candidate.reason).toBe("Has a near-term deadline.");
     expect(candidate.reason).not.toContain("sender@example.com");
   });
 

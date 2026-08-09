@@ -75,8 +75,8 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 ## P0 — Verification and Security
 
-| ID      | Task                                                                                       | Status  | Depends on                         |
-| ------- | ------------------------------------------------------------------------------------------ | ------- | ---------------------------------- |
+| ID      | Task                                                                                       | Status | Depends on                         |
+| ------- | ------------------------------------------------------------------------------------------ | ------ | ---------------------------------- |
 | QLT-001 | Add unit tests for intent parsing, triage ranking, scheduling logic, and approval policy   | DONE   | AGT-002, AGT-006, TRI-002, SCH-003 |
 | QLT-002 | Add mocked integration/API contract tests                                                  | DONE   | INT-008                            |
 | QLT-003 | Add end-to-end happy paths for triage action and approved scheduling                       | DONE   | TRI-006, SCH-006, UI-004           |
@@ -87,10 +87,10 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 | ID      | Task                                                | Status  | Depends on |
 | ------- | --------------------------------------------------- | ------- | ---------- |
-| POL-001 | Improve responsive layout and visual polish         | BACKLOG | UI-005     |
-| POL-002 | Add keyboard-first interactions                     | BACKLOG | UI-005     |
-| POL-003 | Add restrained loading/transition animation         | BACKLOG | UI-005     |
-| POL-004 | Improve daily briefing copy and triage explanations | BACKLOG | TRI-004    |
+| POL-001 | Improve responsive layout and visual polish         | REVIEW  | UI-005     |
+| POL-002 | Add keyboard-first interactions                     | REVIEW  | UI-005     |
+| POL-003 | Add restrained loading/transition animation         | REVIEW  | UI-005     |
+| POL-004 | Improve daily briefing copy and triage explanations | REVIEW  | TRI-004    |
 
 ## P2 — Stretch
 

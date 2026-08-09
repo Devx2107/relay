@@ -206,14 +206,16 @@ function urgencyFromScore(score: number): TriageUrgency {
 }
 
 function reasonFor(candidate: NormalizedTriageCandidate): string {
-  const reasons: string[] = [];
-  if (candidate.signals.urgency > 0) reasons.push("marked urgent or important");
-  if (candidate.signals.responseExpectation > 0) reasons.push("may need a response");
-  if (candidate.signals.deadline > 0) reasons.push("has a near-term deadline or start time");
-  if (candidate.signals.calendarProximity > 0) reasons.push("is approaching soon");
-  if (candidate.signals.explicitUrgency > 0) reasons.push("uses urgent language");
-  if (reasons.length === 0) return "Ranked from available triage signals.";
-  return `${reasons[0][0].toUpperCase()}${reasons[0].slice(1)}.`;
+  if (candidate.signals.deadline > 0) {
+    return candidate.source === "calendar"
+      ? "Starts soon on your calendar."
+      : "Has a near-term deadline.";
+  }
+  if (candidate.signals.responseExpectation > 0) return "May need a reply.";
+  if (candidate.signals.urgency > 0) return "Marked urgent or important.";
+  if (candidate.signals.calendarProximity > 0) return "Coming up soon on your calendar.";
+  if (candidate.signals.explicitUrgency > 0) return "Uses urgent language.";
+  return "Included from the available signals.";
 }
 
 function emailResponseExpectation(

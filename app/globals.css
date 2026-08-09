@@ -26,6 +26,7 @@ body {
     radial-gradient(circle at 92% 80%, rgba(198, 224, 208, 0.66), transparent 30rem), var(--paper);
   color: var(--ink);
   font-family: Arial, sans-serif;
+  overflow-x: hidden;
 }
 
 button,
@@ -45,9 +46,9 @@ textarea:focus-visible {
 
 .console-shell {
   margin: 0 auto;
-  max-width: 1180px;
+  max-width: 1240px;
   min-height: 100vh;
-  padding: 28px 40px 44px;
+  padding: clamp(24px, 4vw, 44px) clamp(18px, 5vw, 56px) 52px;
 }
 
 .console-header,
@@ -62,7 +63,7 @@ textarea:focus-visible {
 
 .console-header {
   justify-content: space-between;
-  margin-bottom: 72px;
+  margin-bottom: clamp(44px, 7vw, 76px);
 }
 
 .brand-lockup {
@@ -129,7 +130,7 @@ textarea:focus-visible {
   align-items: stretch;
   display: grid;
   gap: 24px;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.22fr);
 }
 
 .briefing-panel,
@@ -139,6 +140,7 @@ textarea:focus-visible {
   border: 1px solid var(--line);
   border-radius: 28px;
   box-shadow: 0 24px 80px rgba(44, 67, 58, 0.06);
+  min-width: 0;
 }
 
 .briefing-panel {
@@ -211,6 +213,22 @@ h2 {
   color: var(--muted);
   font-size: 14px;
   padding: 28px 0 4px;
+}
+
+.briefing-status-loading {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.briefing-status-loading::before {
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  border-top-color: var(--teal);
+  content: "";
+  flex: 0 0 12px;
+  height: 12px;
+  width: 12px;
 }
 
 .briefing-status-error {
@@ -308,6 +326,27 @@ h2 {
   padding: 20px 0;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .briefing-status-loading::before {
+    animation: spin 1s linear infinite;
+  }
+
+  .briefing-item,
+  .run-card {
+    animation: content-rise 360ms ease both;
+  }
+
+  .briefing-item:nth-child(2),
+  .run-card:nth-child(2) {
+    animation-delay: 45ms;
+  }
+
+  .briefing-item:nth-child(3),
+  .run-card:nth-child(3) {
+    animation-delay: 90ms;
+  }
+}
+
 .briefing-item h2 {
   font-family: Arial, sans-serif;
   font-size: 17px;
@@ -384,7 +423,7 @@ h2 {
 
 .context-panel h2 {
   font-size: 36px;
-  margin: 18px 0 48px;
+  margin: 18px 0 clamp(30px, 5vw, 48px);
 }
 
 .context-list {
@@ -509,6 +548,7 @@ button[type="submit"]:disabled {
 }
 
 .message-bubble {
+  overflow-wrap: anywhere;
   padding: 14px 18px;
   border-radius: 18px;
   font-size: 14px;
@@ -539,6 +579,8 @@ button[type="submit"]:disabled {
   padding: 16px;
   font-size: 13px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .run-status {
@@ -636,6 +678,8 @@ button[type="submit"]:disabled {
   display: grid;
   gap: 12px;
   padding: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .schedule-proposal-title {
@@ -694,6 +738,11 @@ button[type="submit"]:disabled {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.approval-actions > button,
+.approval-actions > a {
+  min-height: 40px;
 }
 
 .reply-preview {
@@ -795,6 +844,8 @@ button[type="submit"]:disabled {
 .markdown-body {
   font-size: 13px;
   line-height: 1.5;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .markdown-body p {
@@ -855,38 +906,66 @@ button[type="submit"]:disabled {
   }
 }
 
-@media (max-width: 760px) {
-  .console-shell {
-    padding: 22px 18px 30px;
-  }
-
-  .console-header {
-    margin-bottom: 34px;
-  }
-
-  .account-email {
-    max-width: 120px;
-  }
-
+@media (max-width: 900px) {
   .console-grid {
     grid-template-columns: 1fr;
   }
 
   .briefing-panel {
     min-height: 0;
-    padding: 32px 24px;
-  }
-
-  .context-panel {
-    padding: 28px 24px;
   }
 
   .context-panel h2 {
+    max-width: 560px;
+  }
+}
+
+@keyframes content-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .console-shell {
+    padding: 20px 14px 30px;
+  }
+
+  .console-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 34px;
+  }
+
+  .account-pill {
+    max-width: 100%;
+  }
+
+  .account-email {
+    max-width: 120px;
+  }
+
+  .briefing-panel {
+    padding: 26px 20px;
+  }
+
+  .context-panel {
+    padding: 26px 20px;
+  }
+
+  .context-panel h2 {
+    font-size: 31px;
     margin-bottom: 28px;
   }
 
   .composer-panel {
-    padding: 24px 20px 18px;
+    border-radius: 22px;
+    padding: 22px 18px 18px;
   }
 
   .composer-heading {
@@ -899,12 +978,31 @@ button[type="submit"]:disabled {
   }
 
   .composer-footer {
-    align-items: flex-end;
+    align-items: stretch;
+    flex-direction: column;
     gap: 16px;
   }
 
   .composer-note {
     line-height: 1.4;
+  }
+
+  button[type="submit"] {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .approval-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .approval-actions > button,
+  .approval-actions > a {
+    justify-content: center;
+    margin-left: 0;
+    text-align: center;
+    width: 100%;
   }
 }
 
@@ -968,5 +1066,16 @@ button[type="submit"]:disabled {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

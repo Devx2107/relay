@@ -81,6 +81,12 @@ function actionLabel(run: Run): string {
   return "Complete this action";
 }
 
+function urgencyLabel(urgency: BriefingItem["content"]["urgency"]): string {
+  if (urgency === "high") return "High attention";
+  if (urgency === "medium") return "Worth a look";
+  return "For later";
+}
+
 function formatScheduleTime(value: string, timeZone: string): string {
   try {
     return new Intl.DateTimeFormat(undefined, {
@@ -99,6 +105,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
   const [briefingState, setBriefingState] = useState<BriefingState>("loading");
   const [briefingError, setBriefingError] = useState("The briefing could not be loaded.");
   const hasLoadedBriefing = useRef(false);
+  const commandInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ messages: Message[]; runs: Run[] }>({
@@ -116,6 +123,25 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
   const [editingRunId, setEditingRunId] = useState<string | null>(null);
   const [draftBody, setDraftBody] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    function focusComposer(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const isEditingControl =
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "SELECT" ||
+        target?.tagName === "TEXTAREA";
+      if (isEditingControl || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k")
+        return;
+
+      event.preventDefault();
+      commandInputRef.current?.focus();
+    }
+
+    window.addEventListener("keydown", focusComposer);
+    return () => window.removeEventListener("keydown", focusComposer);
+  }, []);
 
   useEffect(() => {
     if (hasLoadedBriefing.current) return;
@@ -346,15 +372,18 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
 
       <div className="console-grid">
         <section className="briefing-panel" aria-labelledby="briefing-title">
-          <div className="eyebrow">Today&apos;s briefing</div>
-          <h1 id="briefing-title">What needs your attention?</h1>
+          <div className="eyebrow">Daily briefing</div>
+          <h1 id="briefing-title">A clearer place to start</h1>
           <p className="panel-intro">
-            Your prioritized email and calendar context will appear here as Relay connects the
-            pieces.
+            A short list of the email and calendar items most worth your attention.
           </p>
 
           {briefingState === "loading" && (
-            <div className="briefing-status" role="status" aria-live="polite">
+            <div
+              className="briefing-status briefing-status-loading"
+              role="status"
+              aria-live="polite"
+            >
               Gathering your latest context…
             </div>
           )}
@@ -383,8 +412,8 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                 <span />
                 <span />
               </div>
-              <h2>Your briefing is ready to begin</h2>
-              <p>Ask Relay to triage your inbox, check your calendar, or find a time to meet.</p>
+              <h2>Nothing urgent right now</h2>
+              <p>Ask Relay to review your inbox, check your calendar, or find a time to meet.</p>
             </div>
           )}
           {briefingState === "ready" && Boolean(briefing?.items.length) && (
@@ -398,7 +427,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                   <div>
                     <div className="briefing-item-meta">
                       <span>{item.source === "email" ? "Email" : "Calendar"}</span>
-                      <span>{item.content.urgency} priority</span>
+                      <span>{urgencyLabel(item.content.urgency)}</span>
                     </div>
                     <h2>{item.content.summary}</h2>
                     <p>{item.content.reason}</p>
@@ -793,7 +822,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
             <div className="eyebrow">Command console</div>
             <h2 id="composer-title">What should we work on?</h2>
           </div>
-          <span className="shortcut-hint">Enter to send</span>
+          <span className="shortcut-hint">Ctrl+K to focus · Enter to send</span>
         </div>
         <form onSubmit={handleSubmit}>
           <label className="sr-only" htmlFor="command-input">
@@ -802,11 +831,18 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
           <textarea
             id="command-input"
             name="command"
+            ref={commandInputRef}
             value={command}
+            aria-keyshortcuts="Control+Enter Meta+Enter"
             onChange={(event) => setCommand(event.target.value)}
             placeholder="Try “triage my inbox” or “find time for a team sync”"
             rows={2}
             onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+                return;
+              }
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit(e as any);

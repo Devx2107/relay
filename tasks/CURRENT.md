@@ -1,10 +1,10 @@
 # Current Task
 
-## Current Task: QLT-005 security and write-approval review
+## Current Task: EXT-001 pgvector semantic search
 
 ## Goal
 
-Review secrets handling, OAuth scopes, authorization, prompt safety, and server-enforced write approval as required by QLT-005.
+Improve the command console’s responsive layout and visual polish as required by POL-001.
 
 ## Context
 
@@ -12,58 +12,55 @@ QLT-005 is the final P0 verification item. The review must cover both API author
 
 ## Requirements
 
-- Review secrets and OAuth scope handling.
-- Review user ownership checks and server-side approval enforcement.
-- Review prompt/tool boundaries for unsafe or unapproved writes.
-- Add focused regression coverage or minimal fixes for confirmed findings.
-- Do not modify later backlog items.
+- Define the embedding provider, model, and vector dimension before schema changes.
+- Define which user-owned content is indexed and how queries are authenticated.
+- Keep semantic search behind the server/database boundary.
+- Do not modify EXT-002, EXT-003, or EXT-004.
 
 ## Acceptance Criteria
 
-- Secrets are not exposed to browser code or committed files.
-- Protected routes enforce authentication and user ownership.
-- Write tools cannot execute without a server-approved run.
-- Prompt/tool handling fails safely for unsupported or malformed requests.
+- A concrete embedding and query contract exists.
+- Search results remain user-scoped and do not expose cross-account content.
+- The implementation is usable rather than only adding an unpopulated vector column.
 - No unrelated product behavior changes are included.
 
 ## Relevant Areas
 
-- `app/api/**`
-- `lib/agent/**`
-- `lib/auth.ts`
-- `supabase/migrations/*rls*`
-- `tests/*security*`, `tests/service.test.ts`, `tests/rls.test.ts`
+- `supabase/migrations/*`
+- `lib/db.ts`
+- `lib/supabase/server.ts`
+- A future embedding/search service boundary
 
 ## Constraints
 
-- Do not add credentials or alter environment files with secrets.
-- Keep Corsair behind the server integration boundary.
-- Do not modify later backlog items.
+- Do not invent an embedding provider, model, or vector dimension.
+- Do not add credentials or external services without an explicit architecture decision.
+- Do not modify EXT-002, EXT-003, or EXT-004.
 
 ## Plan
 
-1. Inspect security-sensitive routes, agent services, tools, prompts, and RLS policies.
-2. Run focused security and authorization checks.
-3. Fix only confirmed QLT-005 findings and add regression coverage where useful.
-4. Run verification and record QLT-005 completion only.
+1. Inspect existing schema and search/integration boundaries.
+2. Select the embedding provider, model, dimension, and indexed content.
+3. Implement the smallest authenticated pgvector search path.
+4. Run checks and record EXT-001 completion only.
 
 ## Verification
 
-- [x] Formatting (targeted QLT-005 files)
-- [x] Lint
-- [x] Typecheck
-- [x] Tests (111 passed; 3 RLS tests skipped without configured database)
-- [x] Build (credential-free `next build` passed)
-- [x] Security and scope review
+- [ ] Formatting
+- [ ] Lint
+- [ ] Typecheck
+- [ ] Tests
+- [ ] Build
+- [ ] Security and scope review
 
 ## Review
 
-- [x] No unrelated changes
-- [x] No regressions
-- [x] No unnecessary complexity
-- [x] Security reviewed
-- [x] Documentation updated
+- [ ] No unrelated changes
+- [ ] No regressions
+- [ ] No unnecessary complexity
+- [ ] Security reviewed
+- [ ] Documentation updated
 
 ## Status
 
-DONE - QLT-005 security and write-approval review complete.
+REVIEW - EXT-001 is blocked pending an embedding provider, model/dimension, indexed content, and query-scope decision; no code changed.
