@@ -33,6 +33,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json(updatedRun);
   } catch (error: any) {
     console.error("Failed to approve run", error);
-    return NextResponse.json({ error: error.message || "Failed to approve run" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: {
+          code: "approval_failed",
+          message: "The run could not be approved.",
+          retryable: true,
+        },
+      },
+      { status: 500 },
+    );
   }
 }

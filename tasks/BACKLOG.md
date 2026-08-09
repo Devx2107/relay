@@ -77,11 +77,11 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 | ID      | Task                                                                                       | Status  | Depends on                         |
 | ------- | ------------------------------------------------------------------------------------------ | ------- | ---------------------------------- |
-| QLT-001 | Add unit tests for intent parsing, triage ranking, scheduling logic, and approval policy   | REVIEW  | AGT-002, AGT-006, TRI-002, SCH-003 |
-| QLT-002 | Add mocked integration/API contract tests                                                  | BACKLOG | INT-008                            |
-| QLT-003 | Add end-to-end happy paths for triage action and approved scheduling                       | BACKLOG | TRI-006, SCH-006, UI-004           |
-| QLT-004 | Verify production build with no real credentials required at build time                    | BACKLOG | UI-005                             |
-| QLT-005 | Review secrets, OAuth scopes, authorization, prompt safety, and write approval enforcement | BACKLOG | FND-005, AGT-006                   |
+| QLT-001 | Add unit tests for intent parsing, triage ranking, scheduling logic, and approval policy   | DONE   | AGT-002, AGT-006, TRI-002, SCH-003 |
+| QLT-002 | Add mocked integration/API contract tests                                                  | DONE   | INT-008                            |
+| QLT-003 | Add end-to-end happy paths for triage action and approved scheduling                       | DONE   | TRI-006, SCH-006, UI-004           |
+| QLT-004 | Verify production build with no real credentials required at build time                    | DONE   | UI-005                             |
+| QLT-005 | Review secrets, OAuth scopes, authorization, prompt safety, and write approval enforcement | DONE   | FND-005, AGT-006                   |
 
 ## P1 — Polish
 

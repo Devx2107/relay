@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { getCorsair } from "../../../corsair";
 import { createClient } from "../../../lib/supabase/server";
 
+const CONNECTABLE_PLUGINS = new Set(["gmail", "googlecalendar"]);
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const plugin = url.searchParams.get("plugin");
 
-  if (!plugin) {
-    return new NextResponse("Missing plugin", { status: 400 });
+  if (!plugin || !CONNECTABLE_PLUGINS.has(plugin)) {
+    return new NextResponse("Unsupported integration", { status: 400 });
   }
 
   const supabase = await createClient();
@@ -28,8 +30,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(link.connectUrl);
   } catch (error: any) {
     console.error("Failed to create connect link", error);
-    return new NextResponse(`Failed to create connect link: ${error.message || String(error)}`, {
-      status: 500,
-    });
+    return new NextResponse("Failed to create connect link", { status: 500 });
   }
 }

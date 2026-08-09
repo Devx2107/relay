@@ -1,60 +1,59 @@
 # Current Task
 
-## Current Task: Route approved Gmail replies through RFC2822 construction
+## Current Task: QLT-005 security and write-approval review
 
 ## Goal
 
-Ensure approved triage replies and reply drafts use the existing RFC2822 MIME construction before reaching Gmail.
+Review secrets handling, OAuth scopes, authorization, prompt safety, and server-enforced write approval as required by QLT-005.
 
 ## Context
 
-`GmailService` already constructs correctly threaded RFC2822 payloads, but the tool definitions currently route `gmail.send` and `gmail.reply_draft` directly to Corsair. Approved triage actions provide only `{ threadId, body }`, so the RFC2822 methods are never used.
+QLT-005 is the final P0 verification item. The review must cover both API authorization and the agent’s write boundary, while preserving the integration abstraction and approval requirement.
 
 ## Requirements
 
-- Route `gmail.send` and `gmail.reply_draft` through the server-side local executor.
-- Reuse `GmailService.sendReply()` and `createReplyDraft()` for raw MIME/threading construction.
-- Keep `gmail.archive_thread` on its existing direct integration mapping.
-- Add regression coverage at the registry integration boundary.
+- Review secrets and OAuth scope handling.
+- Review user ownership checks and server-side approval enforcement.
+- Review prompt/tool boundaries for unsafe or unapproved writes.
+- Add focused regression coverage or minimal fixes for confirmed findings.
+- Do not modify later backlog items.
 
 ## Acceptance Criteria
 
-- Approved send and draft calls fetch the source thread before invoking Gmail send/draft.
-- The outgoing call contains the RFC2822 `raw` payload and threading headers.
-- Lint, typecheck, formatting, tests, and build pass.
-- Lint, typecheck, formatting, tests, and build pass.
+- Secrets are not exposed to browser code or committed files.
+- Protected routes enforce authentication and user ownership.
+- Write tools cannot execute without a server-approved run.
+- Prompt/tool handling fails safely for unsupported or malformed requests.
 - No unrelated product behavior changes are included.
 
 ## Relevant Areas
 
-- `lib/gmail.ts`
-- `lib/agent/tools.ts`
-- `lib/agent/service.ts`
-- `tests/gmail.test.ts`
-- `tests/service.test.ts`
+- `app/api/**`
+- `lib/agent/**`
+- `lib/auth.ts`
+- `supabase/migrations/*rls*`
+- `tests/*security*`, `tests/service.test.ts`, `tests/rls.test.ts`
 
 ## Constraints
 
-- Keep provider calls mocked in normal tests.
-- Preserve the server-side approval boundary.
-- Do not modify scheduling execution behavior.
-- Keep the verified scheduling proposal path unchanged.
-- Keep provider calls server-side and approval-gated.
+- Do not add credentials or alter environment files with secrets.
+- Keep Corsair behind the server integration boundary.
+- Do not modify later backlog items.
 
 ## Plan
 
-1. Inspect Gmail construction and registry wiring.
-2. Make reply tools use the injected local executor.
-3. Add focused RFC2822 execution coverage.
-4. Run targeted and full checks and review security/scope.
+1. Inspect security-sensitive routes, agent services, tools, prompts, and RLS policies.
+2. Run focused security and authorization checks.
+3. Fix only confirmed QLT-005 findings and add regression coverage where useful.
+4. Run verification and record QLT-005 completion only.
 
 ## Verification
 
-- [x] Formatting (targeted task files)
+- [x] Formatting (targeted QLT-005 files)
 - [x] Lint
 - [x] Typecheck
-- [x] Tests (106 passed, 3 live RLS tests skipped without opt-in)
-- [x] Build
+- [x] Tests (111 passed; 3 RLS tests skipped without configured database)
+- [x] Build (credential-free `next build` passed)
 - [x] Security and scope review
 
 ## Review
@@ -67,4 +66,4 @@ Ensure approved triage replies and reply drafts use the existing RFC2822 MIME co
 
 ## Status
 
-REVIEW - Approved Gmail replies now use RFC2822 construction and are awaiting review.
+DONE - QLT-005 security and write-approval review complete.
