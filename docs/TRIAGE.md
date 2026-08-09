@@ -52,4 +52,8 @@ Approval rechecks ownership, pending status, proposal expiration, and the expect
 
 The draft endpoint does not call the provider or expose raw thread data. It exists to provide an editable starting point; the final body is validated again when the proposal is created and again when approval executes. UI rendering of the draft editor and approval card remains UI-004.
 
+UI-004 renders pending proposals with bounded action details, supports editing a reply through the internal proposal update route, and provides explicit approve/cancel controls. Cancellation persists the `cancelled` run state; it is not a browser-only dismissal. Approval and cancellation both require the authenticated owner and a still-pending proposal, and the UI refreshes from persisted run state after either mutation.
+
+UI-005 distinguishes a successful empty briefing from an unavailable source or failed request. Available source items remain visible during partial failures, while whole-briefing failures expose only a safe retry message. Unauthorized responses are treated as session expiry and stop background history polling until the user signs in again.
+
 Authentication failures return a safe `401` response. Unexpected orchestration or persistence failures return a safe retryable `503`; source-specific read failures remain represented in the response's per-source status while available items can still be shown. The console makes one briefing request per mount and does not poll or run background loops.

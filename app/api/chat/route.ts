@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../lib/supabase/server";
 import { AgentService } from "../../../lib/agent/service";
+import { isValidTimeZone } from "../../../lib/agent/contracts";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +17,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { command, conversationId: reqConversationId } = body;
+    const { command, conversationId: reqConversationId, timeZone } = body;
 
     if (!command || typeof command !== "string") {
       return NextResponse.json({ error: "Command is required" }, { status: 400 });
+    }
+    if (timeZone !== undefined && (!isValidTimeZone(timeZone) || typeof timeZone !== "string")) {
+      return NextResponse.json({ error: "The account timezone is invalid" }, { status: 400 });
     }
 
     let conversationId = reqConversationId;
@@ -67,7 +71,7 @@ export async function POST(request: Request) {
 
     // Start agent run.
     const agentService = new AgentService(user.id);
-    const run = await agentService.startRun(conversationId, command);
+    const run = await agentService.startRun(conversationId, command, { accountTimeZone: timeZone });
 
     return NextResponse.json({ conversationId, run });
   } catch (error: any) {

@@ -7,6 +7,7 @@ import {
   parseUserFacingError,
 } from "../lib/agent/contracts";
 import { parseCommand } from "../lib/agent/intents";
+import { applyScheduleDefaults } from "../lib/scheduling";
 
 describe("agent contracts", () => {
   it("parses supported triage and scheduling intents", () => {
@@ -19,11 +20,43 @@ describe("agent contracts", () => {
     expect(
       parseAgentIntent({
         kind: "schedule",
-        parameters: { request: "Meet tomorrow", attendees: ["a@example.com"] },
+        parameters: {
+          request: "Meet tomorrow",
+          attendees: ["a@example.com"],
+          attendeeStatus: "provided",
+          options: {
+            durationMinutes: 30,
+            meetingProvider: "google_meet",
+            calendarId: "primary",
+            timeZone: "Asia/Kolkata",
+            sources: {
+              durationMinutes: "default",
+              meetingProvider: "default",
+              calendarId: "default",
+              timeZone: "fallback",
+            },
+          },
+        },
       }),
     ).toEqual({
       kind: "schedule",
-      parameters: { request: "Meet tomorrow", attendees: ["a@example.com"] },
+      parameters: {
+        request: "Meet tomorrow",
+        attendees: ["a@example.com"],
+        attendeeStatus: "provided",
+        options: {
+          durationMinutes: 30,
+          meetingProvider: "google_meet",
+          calendarId: "primary",
+          timeZone: "Asia/Kolkata",
+          sources: {
+            durationMinutes: "default",
+            meetingProvider: "default",
+            calendarId: "default",
+            timeZone: "fallback",
+          },
+        },
+      },
     });
   });
 
@@ -106,6 +139,19 @@ describe("agent contracts", () => {
         parameters: {
           request: "Schedule a meeting with A@Example.com and a@example.com tomorrow",
           attendees: ["a@example.com"],
+          attendeeStatus: "provided",
+          options: {
+            durationMinutes: 30,
+            meetingProvider: "google_meet",
+            calendarId: "primary",
+            timeZone: "Asia/Kolkata",
+            sources: {
+              durationMinutes: "default",
+              meetingProvider: "default",
+              calendarId: "default",
+              timeZone: "fallback",
+            },
+          },
         },
       },
     });
@@ -121,7 +167,22 @@ describe("agent contracts", () => {
       ok: true,
       intent: {
         kind: "schedule",
-        parameters: { request: "what about tomorrow?", attendees: undefined },
+        parameters: {
+          request: "what about tomorrow?",
+          attendeeStatus: "missing",
+          options: {
+            durationMinutes: 30,
+            meetingProvider: "google_meet",
+            calendarId: "primary",
+            timeZone: "Asia/Kolkata",
+            sources: {
+              durationMinutes: "default",
+              meetingProvider: "default",
+              calendarId: "default",
+              timeZone: "fallback",
+            },
+          },
+        },
       },
     });
 
@@ -150,6 +211,108 @@ describe("agent contracts", () => {
     });
     expect(parseCommand(" ")).toMatchObject({ ok: false, error: { code: "invalid_request" } });
     expect(parseCommand("x".repeat(2001))).toMatchObject({
+      ok: false,
+      error: { code: "invalid_request" },
+    });
+  });
+
+  it("marks display names unresolved without inventing email addresses", () => {
+    expect(parseCommand("Schedule a meeting with Alice and Bob tomorrow")).toMatchObject({
+      ok: true,
+      intent: {
+        kind: "schedule",
+        parameters: {
+          attendeeStatus: "unresolved",
+          unresolvedAttendees: ["Alice", "Bob"],
+        },
+      },
+    });
+  });
+
+  it("rejects malformed and excessive attendee addresses", () => {
+    expect(parseCommand("Schedule a meeting with bad@email tomorrow")).toMatchObject({
+      ok: false,
+      error: { code: "invalid_request" },
+    });
+
+    const attendees = Array.from({ length: 21 }, (_, index) => `person${index}@example.com`);
+    expect(parseCommand(`Schedule a meeting with ${attendees.join(", ")}`)).toMatchObject({
+      ok: false,
+      error: { code: "invalid_request" },
+    });
+  });
+
+  it("rejects unsafe direct schedule contract payloads", () => {
+    expect(() =>
+      parseAgentIntent({
+        kind: "schedule",
+        parameters: {
+          request: "Meet tomorrow",
+          attendees: ["A@example.com"],
+          attendeeStatus: "provided",
+        },
+      }),
+    ).toThrow(/canonical/);
+    expect(() =>
+      parseAgentIntent({
+        kind: "schedule",
+        parameters: {
+          request: "Meet tomorrow",
+          attendeeStatus: "missing",
+          attendees: ["a@example.com"],
+        },
+      }),
+    ).toThrow(/attendeeStatus/);
+  });
+
+  it("applies editable scheduling defaults and account timezone", () => {
+    expect(applyScheduleDefaults("Schedule a meeting", "Asia/Kolkata")).toEqual({
+      durationMinutes: 30,
+      meetingProvider: "google_meet",
+      calendarId: "primary",
+      timeZone: "Asia/Kolkata",
+      sources: {
+        durationMinutes: "default",
+        meetingProvider: "default",
+        calendarId: "default",
+        timeZone: "user",
+      },
+    });
+    expect(
+      parseCommand("Book a 45 minute Google Meet on the primary calendar timezone UTC", [], {
+        accountTimeZone: "Asia/Kolkata",
+      }),
+    ).toMatchObject({
+      ok: true,
+      intent: {
+        parameters: {
+          options: {
+            durationMinutes: 45,
+            meetingProvider: "google_meet",
+            calendarId: "primary",
+            timeZone: "UTC",
+            sources: {
+              durationMinutes: "user",
+              meetingProvider: "user",
+              calendarId: "user",
+              timeZone: "user",
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("rejects unsupported explicit scheduling options", () => {
+    expect(parseCommand("Book a 2 minute meeting")).toMatchObject({
+      ok: false,
+      error: { code: "invalid_request" },
+    });
+    expect(parseCommand("Book a meeting on Zoom")).toMatchObject({
+      ok: false,
+      error: { code: "invalid_request" },
+    });
+    expect(parseCommand("Book a meeting timezone Mars/Olympus")).toMatchObject({
       ok: false,
       error: { code: "invalid_request" },
     });

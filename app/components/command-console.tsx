@@ -21,7 +21,13 @@ interface BriefingItem {
 
 interface BriefingResponse {
   items: BriefingItem[];
-  sourceStatus?: Record<string, { state: "available" | "unavailable" }>;
+  sourceStatus?: Record<
+    string,
+    {
+      state: "available" | "unavailable";
+      error?: { code?: string; message?: string; retryable?: boolean };
+    }
+  >;
 }
 
 interface Message {
@@ -34,16 +40,32 @@ interface Message {
 interface Run {
   id: string;
   status: string;
-  metadata?: any;
-  error?: any;
+  metadata?: {
+    progressEvents?: Array<{ status: string; message: string }>;
+    finalSummary?: string;
+    action?: string;
+    triageItemId?: string;
+    draftBody?: string;
+  };
+  error?: { message?: string; action?: string; plugin?: string } | string;
   created_at: string;
+}
+
+type MutationState = { runId: string; action: "approve" | "cancel" | "edit" } | null;
+type BriefingState = "loading" | "ready" | "error" | "session_expired";
+
+function actionLabel(run: Run): string {
+  if (run.metadata?.action === "reply") return "Send email reply";
+  if (run.metadata?.action === "ignore") return "Archive or dismiss item";
+  if (run.metadata?.action === "snooze") return "Snooze item";
+  return "Complete this action";
 }
 
 export default function CommandConsole({ email }: CommandConsoleProps) {
   const [command, setCommand] = useState("");
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null);
-  const [briefingError, setBriefingError] = useState(false);
-  const [briefingLoading, setBriefingLoading] = useState(true);
+  const [briefingState, setBriefingState] = useState<BriefingState>("loading");
+  const [briefingError, setBriefingError] = useState("The briefing could not be loaded.");
   const hasLoadedBriefing = useRef(false);
 
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -51,45 +73,87 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
     messages: [],
     runs: [],
   });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const hasLoadedHistory = useRef(false);
+  const [historyRetryKey, setHistoryRetryKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [commandError, setCommandError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [mutation, setMutation] = useState<MutationState>(null);
+  const [editingRunId, setEditingRunId] = useState<string | null>(null);
+  const [draftBody, setDraftBody] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (hasLoadedBriefing.current) return;
     hasLoadedBriefing.current = true;
 
-    let active = true;
-    fetch("/api/triage?limit=5", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Briefing unavailable");
-        return (await response.json()) as BriefingResponse;
-      })
-      .then((result) => {
-        if (active) setBriefing(result);
-      })
-      .catch(() => {
-        if (active) setBriefingError(true);
-      })
-      .finally(() => {
-        if (active) setBriefingLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+    void loadBriefing();
   }, []);
+
+  async function loadBriefing() {
+    setBriefingState("loading");
+    setBriefingError("The briefing could not be loaded.");
+    try {
+      const response = await fetch("/api/triage?limit=5", { cache: "no-store" });
+      if (response.status === 401) {
+        setBriefingState("session_expired");
+        setSessionExpired(true);
+        return;
+      }
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        throw new Error(payload?.error?.message || "The briefing could not be loaded.");
+      }
+      setBriefing((await response.json()) as BriefingResponse);
+      setBriefingState("ready");
+      setSessionExpired(false);
+    } catch (error) {
+      setBriefingError(
+        error instanceof Error ? error.message : "The briefing could not be loaded.",
+      );
+      setBriefingState("error");
+    }
+  }
 
   useEffect(() => {
     if (!conversationId) return;
 
     let active = true;
+    let polling = true;
     const fetchHistory = async () => {
+      if (!polling) return;
+      if (!hasLoadedHistory.current) setHistoryLoading(true);
       try {
         const response = await fetch(`/api/conversations/${conversationId}`);
-        if (!response.ok) return;
+        if (response.status === 401) {
+          polling = false;
+          setSessionExpired(true);
+          setHistoryError("Your session expired. Sign in again to continue.");
+          setHistoryLoading(false);
+          return;
+        }
+        if (!response.ok) {
+          setHistoryError("Conversation history is temporarily unavailable.");
+          setHistoryLoading(false);
+          return;
+        }
         const data = await response.json();
-        if (active) setHistory(data);
-      } catch (err) {
-        console.error("Failed to fetch conversation history", err);
+        if (active) {
+          setHistory(data);
+          setHistoryError(null);
+          setHistoryLoading(false);
+          hasLoadedHistory.current = true;
+          setSessionExpired(false);
+        }
+      } catch {
+        if (active) {
+          setHistoryError("Conversation history is temporarily unavailable.");
+          setHistoryLoading(false);
+        }
       }
     };
 
@@ -99,7 +163,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
       active = false;
       clearInterval(interval);
     };
-  }, [conversationId]);
+  }, [conversationId, historyRetryKey]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,6 +172,8 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
     const currentCommand = command.trim();
     setCommand("");
     setIsSubmitting(true);
+    setCommandError(null);
+    const optimisticMessageId = `optimistic-${Date.now()}`;
 
     // Optimistically add user message
     setHistory((prev) => ({
@@ -115,7 +181,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
       messages: [
         ...prev.messages,
         {
-          id: Date.now().toString(),
+          id: optimisticMessageId,
           role: "user",
           content: currentCommand,
           created_at: new Date().toISOString(),
@@ -127,38 +193,98 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: currentCommand, conversationId }),
+        body: JSON.stringify({
+          command: currentCommand,
+          conversationId,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
       });
+      if (response.status === 401) {
+        setSessionExpired(true);
+        throw new Error("Your session expired. Sign in again to continue.");
+      }
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API Error:", errorText);
-        throw new Error(`Failed to send command: ${errorText}`);
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string | { message?: string };
+        } | null;
+        const message =
+          typeof payload?.error === "string" ? payload.error : payload?.error?.message;
+        throw new Error(message || "The command could not be sent.");
       }
       const data = JSON.parse(await response.text());
       if (!conversationId && data.conversationId) {
         setConversationId(data.conversationId);
       }
+      setCommandError(null);
+      setSessionExpired(false);
     } catch (error) {
-      console.error(error);
+      setHistory((prev) => ({
+        ...prev,
+        messages: prev.messages.filter((message) => message.id !== optimisticMessageId),
+      }));
+      setCommand(currentCommand);
+      setCommandError(error instanceof Error ? error.message : "The command could not be sent.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleApprove(runId: string) {
+    if (sessionExpired) return;
+    setActionError(null);
+    setMutation({ runId, action: "approve" });
     try {
       const response = await fetch(`/api/runs/${runId}/approve`, { method: "POST" });
-      if (!response.ok) {
-        console.error("Failed to approve run");
-      }
+      if (!response.ok) throw new Error("This approval is no longer available.");
     } catch (error) {
-      console.error(error);
+      setActionError(error instanceof Error ? error.message : "The action could not be approved.");
+    } finally {
+      setMutation(null);
+    }
+  }
+
+  async function handleCancel(runId: string) {
+    if (sessionExpired) return;
+    setActionError(null);
+    setMutation({ runId, action: "cancel" });
+    try {
+      const response = await fetch(`/api/runs/${runId}/cancel`, { method: "POST" });
+      if (!response.ok) throw new Error("This approval is no longer available.");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "The action could not be cancelled.");
+    } finally {
+      setMutation(null);
+    }
+  }
+
+  async function handleEditSubmit(event: FormEvent<HTMLFormElement>, run: Run) {
+    event.preventDefault();
+    if (sessionExpired || !conversationId || !run.metadata?.triageItemId || !draftBody.trim())
+      return;
+    setActionError(null);
+    setMutation({ runId: run.id, action: "edit" });
+    try {
+      const response = await fetch(`/api/triage/actions/${run.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: draftBody }),
+      });
+      if (!response.ok) throw new Error("The reply proposal could not be updated.");
+      setEditingRunId(null);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "The reply could not be updated.");
+    } finally {
+      setMutation(null);
     }
   }
 
   // Combine messages and runs by created_at for rendering (simplified)
   const conversationItems = [...history.messages, ...history.runs].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  const hasUnavailableSource = Boolean(
+    briefing?.sourceStatus &&
+    Object.values(briefing.sourceStatus).some((status) => status.state === "unavailable"),
   );
 
   return (
@@ -179,6 +305,13 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
         </div>
       </header>
 
+      {sessionExpired && (
+        <div className="session-banner" role="alert">
+          <span>Your session expired. Sign in again to reconnect Relay.</span>
+          <a href="/login">Sign in</a>
+        </div>
+      )}
+
       <div className="console-grid">
         <section className="briefing-panel" aria-labelledby="briefing-title">
           <div className="eyebrow">Today&apos;s briefing</div>
@@ -188,13 +321,30 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
             pieces.
           </p>
 
-          {briefingLoading && <div className="briefing-status">Gathering your latest context…</div>}
-          {briefingError && (
-            <div className="briefing-status briefing-status-error" role="status">
-              Your briefing could not be loaded. You can still use the command console below.
+          {briefingState === "loading" && (
+            <div className="briefing-status" role="status" aria-live="polite">
+              Gathering your latest context…
             </div>
           )}
-          {!briefingLoading && !briefingError && briefing?.items.length === 0 && (
+          {briefingState === "session_expired" && (
+            <div className="briefing-status briefing-status-error" role="alert">
+              Your session expired before the briefing could load.{" "}
+              <a href="/login">Sign in again</a>.
+            </div>
+          )}
+          {briefingState === "error" && (
+            <div className="briefing-status briefing-status-error" role="status">
+              {briefingError} You can still use the command console below.
+              <button
+                type="button"
+                className="inline-retry-btn"
+                onClick={() => void loadBriefing()}
+              >
+                Retry briefing
+              </button>
+            </div>
+          )}
+          {briefingState === "ready" && briefing?.items.length === 0 && !hasUnavailableSource && (
             <div className="empty-briefing" aria-live="polite">
               <div className="empty-orbit" aria-hidden="true">
                 <span />
@@ -205,7 +355,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
               <p>Ask Relay to triage your inbox, check your calendar, or find a time to meet.</p>
             </div>
           )}
-          {!briefingLoading && !briefingError && Boolean(briefing?.items.length) && (
+          {briefingState === "ready" && Boolean(briefing?.items.length) && (
             <div className="briefing-items" aria-live="polite">
               {briefing?.items.map((item) => (
                 <article className="briefing-item" key={item.id}>
@@ -225,6 +375,29 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
               ))}
             </div>
           )}
+          {briefingState === "ready" && briefing?.sourceStatus && (
+            <div className="source-status-list" aria-live="polite">
+              {Object.entries(briefing.sourceStatus).map(([source, status]) =>
+                status.state === "unavailable" ? (
+                  <div className="source-status source-status-error" key={source}>
+                    <span>
+                      {source === "email" ? "Email" : "Calendar"} is unavailable.
+                      {status.error?.message ? ` ${status.error.message}` : ""}
+                    </span>
+                    {status.error?.retryable && (
+                      <button
+                        type="button"
+                        className="inline-retry-btn"
+                        onClick={() => void loadBriefing()}
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </div>
+                ) : null,
+              )}
+            </div>
+          )}
         </section>
 
         <aside className="context-panel" aria-labelledby="context-title">
@@ -233,6 +406,26 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
 
           {conversationItems.length > 0 ? (
             <div className="conversation-history">
+              {historyLoading && <div className="history-status">Loading conversation…</div>}
+              {historyError && (
+                <div className="history-status" role="alert">
+                  {historyError}
+                  {sessionExpired ? (
+                    <a href="/login">Sign in again</a>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-retry-btn"
+                      onClick={() => {
+                        hasLoadedHistory.current = false;
+                        setHistoryRetryKey((value) => value + 1);
+                      }}
+                    >
+                      Retry history
+                    </button>
+                  )}
+                </div>
+              )}
               {conversationItems.map((item) => {
                 if ("role" in item) {
                   return (
@@ -246,15 +439,16 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                 } else {
                   return (
                     <div key={item.id} className="run-card">
-                      <div className="run-status">
+                      <div className={`run-status run-status-${item.status}`}>
                         <span className="status-indicator" aria-hidden="true"></span>
                         Agent is {item.status.replace(/_/g, " ")}
                       </div>
 
                       {item.metadata?.progressEvents && item.metadata.progressEvents.length > 0 && (
                         <ul className="progress-list">
-                          {item.metadata.progressEvents.map((event: any, index: number) => {
-                            const isLast = index === item.metadata.progressEvents.length - 1;
+                          {(item.metadata?.progressEvents ?? []).map((event, index) => {
+                            const isLast =
+                              index === (item.metadata?.progressEvents?.length ?? 0) - 1;
                             const isRunFinished =
                               item.status === "completed" || item.status === "failed";
 
@@ -339,10 +533,104 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
 
                       {item.status === "waiting_for_approval" && (
                         <div className="approval-section">
-                          <p>This action requires your explicit approval to continue.</p>
-                          <button onClick={() => handleApprove(item.id)} className="approve-btn">
-                            Approve Action
-                          </button>
+                          <div className="approval-heading">
+                            <span className="approval-kicker">Approval required</span>
+                            <strong>{actionLabel(item)}</strong>
+                          </div>
+                          <p>Review this action before Relay makes any consequential change.</p>
+                          {item.metadata?.action === "reply" &&
+                            item.metadata.draftBody &&
+                            (editingRunId === item.id ? (
+                              <form
+                                onSubmit={(event) => handleEditSubmit(event, item)}
+                                className="reply-editor"
+                              >
+                                <label htmlFor={`reply-${item.id}`}>Reply body</label>
+                                <textarea
+                                  id={`reply-${item.id}`}
+                                  value={draftBody}
+                                  onChange={(event) => setDraftBody(event.target.value)}
+                                  maxLength={5000}
+                                  rows={6}
+                                />
+                                <div className="approval-actions">
+                                  <button
+                                    type="submit"
+                                    className="approve-btn"
+                                    disabled={mutation !== null || sessionExpired}
+                                  >
+                                    {mutation?.runId === item.id && mutation.action === "edit"
+                                      ? "Saving…"
+                                      : "Save reply"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cancel-btn"
+                                    onClick={() => setEditingRunId(null)}
+                                    disabled={mutation !== null || sessionExpired}
+                                  >
+                                    Keep current
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <div className="reply-preview">{item.metadata.draftBody}</div>
+                            ))}
+                          {actionError && mutation?.runId === item.id && (
+                            <div className="action-error" role="alert">
+                              {actionError}
+                            </div>
+                          )}
+                          <div className="approval-actions">
+                            {item.metadata?.action === "reply" &&
+                              item.metadata.draftBody &&
+                              editingRunId !== item.id && (
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  onClick={() => {
+                                    setDraftBody(item.metadata?.draftBody ?? "");
+                                    setEditingRunId(item.id);
+                                  }}
+                                  disabled={mutation !== null || sessionExpired}
+                                >
+                                  Edit reply
+                                </button>
+                              )}
+                            <button
+                              type="button"
+                              onClick={() => handleCancel(item.id)}
+                              className="cancel-btn"
+                              disabled={mutation !== null || sessionExpired}
+                            >
+                              {mutation?.runId === item.id && mutation.action === "cancel"
+                                ? "Cancelling…"
+                                : "Cancel"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApprove(item.id)}
+                              className="approve-btn"
+                              disabled={
+                                mutation !== null || editingRunId === item.id || sessionExpired
+                              }
+                            >
+                              {mutation?.runId === item.id && mutation.action === "approve"
+                                ? "Approving…"
+                                : "Approve"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {item.status === "cancelled" && (
+                        <div className="run-notice">
+                          This action was cancelled before execution.
+                        </div>
+                      )}
+                      {item.status === "completed" && (
+                        <div className="run-notice run-notice-success">
+                          Action completed successfully.
                         </div>
                       )}
                     </div>
@@ -351,26 +639,35 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
               })}
             </div>
           ) : (
-            <div className="context-list">
-              <div className="context-item">
-                <span className="context-icon" aria-hidden="true">
-                  ✦
-                </span>
-                <span>
-                  <strong>Priority first</strong>
-                  <small>Important context, without the noise.</small>
-                </span>
+            <>
+              {historyLoading && <div className="history-status">Loading conversation…</div>}
+              {historyError && (
+                <div className="history-status" role="alert">
+                  {historyError}
+                  {sessionExpired && <a href="/login">Sign in again</a>}
+                </div>
+              )}
+              <div className="context-list">
+                <div className="context-item">
+                  <span className="context-icon" aria-hidden="true">
+                    ✦
+                  </span>
+                  <span>
+                    <strong>Priority first</strong>
+                    <small>Important context, without the noise.</small>
+                  </span>
+                </div>
+                <div className="context-item">
+                  <span className="context-icon" aria-hidden="true">
+                    ↗
+                  </span>
+                  <span>
+                    <strong>Actions stay yours</strong>
+                    <small>Relay asks before anything consequential.</small>
+                  </span>
+                </div>
               </div>
-              <div className="context-item">
-                <span className="context-icon" aria-hidden="true">
-                  ↗
-                </span>
-                <span>
-                  <strong>Actions stay yours</strong>
-                  <small>Relay asks before anything consequential.</small>
-                </span>
-              </div>
-            </div>
+            </>
           )}
         </aside>
       </div>
@@ -406,12 +703,26 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
             <button
               type="submit"
               aria-label="Send command"
-              disabled={!command.trim() || isSubmitting}
+              disabled={!command.trim() || isSubmitting || sessionExpired}
             >
               <span aria-hidden="true">↑</span>
               Send
             </button>
           </div>
+          {commandError && (
+            <div className="command-error" role="alert">
+              <span>{commandError}</span>
+              <button
+                type="button"
+                className="inline-retry-btn"
+                onClick={() =>
+                  void handleSubmit(new Event("submit") as unknown as FormEvent<HTMLFormElement>)
+                }
+              >
+                Retry command
+              </button>
+            </div>
+          )}
         </form>
       </section>
     </main>

@@ -3,6 +3,9 @@ import { parseCommand } from "./intents";
 import type { GroqAdapter, GroqMessage, GroqTool } from "./groq";
 import type { ToolRegistry, ToolDefinition } from "./tools";
 import { TOOL_DEFINITIONS } from "./tools";
+import { AvailabilityDataError, findAvailableSlots } from "../scheduling-availability";
+import { buildSchedulingProposal } from "../scheduling-proposal";
+import type { AvailableSlot } from "../scheduling-availability";
 
 export interface AgentLoopOptions {
   runId: string;
@@ -10,6 +13,7 @@ export interface AgentLoopOptions {
   conversationId: string;
   groq: GroqAdapter;
   registry: ToolRegistry;
+  accountTimeZone?: string;
   onProgress: (event: AgentProgressEvent) => void;
   onComplete: (run: AgentRun) => void;
 }
@@ -27,7 +31,9 @@ export class AgentLoop {
       createdAt: timestamp(),
     });
 
-    const parsed = parseCommand(command, history);
+    const parsed = parseCommand(command, history, {
+      accountTimeZone: this.options.accountTimeZone,
+    });
     if (!parsed.ok) {
       this.failRun(parsed.error, "Failed to parse command.", timestamp());
       return;
@@ -65,6 +71,8 @@ export class AgentLoop {
         content: `Fulfill the following intent: ${JSON.stringify(intent)}`,
       },
     ];
+    let scheduleAvailabilityProcessed = false;
+    let scheduleSlots: AvailableSlot[] | undefined;
 
     const planResponse = await this.options.groq.complete(
       messages,
@@ -113,11 +121,66 @@ export class AgentLoop {
               return;
             }
 
+            let safeResult = result;
+            if (
+              intent.kind === "schedule" &&
+              toolDef.id === "calendar.check_availability" &&
+              result.ok
+            ) {
+              scheduleAvailabilityProcessed = true;
+              try {
+                const options = intent.parameters.options;
+                if (!intent.parameters.attendees || intent.parameters.attendees.length === 0) {
+                  throw new AvailabilityDataError(
+                    "Attendee email addresses are required for availability.",
+                  );
+                }
+                const slots = findAvailableSlots(
+                  {
+                    attendees: intent.parameters.attendees,
+                    windowStart: String(args.timeMin ?? ""),
+                    windowEnd: String(args.timeMax ?? ""),
+                    durationMinutes: options.durationMinutes,
+                    timeZone: options.timeZone,
+                    maxResults: 3,
+                  },
+                  result.data as {
+                    calendars: Record<string, { busy: Array<{ start: string; end: string }> }>;
+                  },
+                );
+                scheduleSlots = slots;
+                safeResult = { ...result, data: { slots } };
+              } catch (error) {
+                safeResult = {
+                  toolCallId: result.toolCallId,
+                  ok: false,
+                  error: {
+                    code: "integration_unavailable",
+                    message:
+                      error instanceof AvailabilityDataError
+                        ? "Verified calendar availability was unavailable."
+                        : "Verified calendar availability could not be calculated.",
+                    retryable: true,
+                    action: "retry",
+                  },
+                  failure: { code: "integration_error", retryable: true },
+                };
+              }
+            }
+
+            if (
+              intent.kind === "schedule" &&
+              toolDef.id === "calendar.check_availability" &&
+              !result.ok
+            ) {
+              scheduleAvailabilityProcessed = true;
+            }
+
             messages.push({
               role: "tool",
               tool_call_id: call.id,
               name: call.function.name,
-              content: JSON.stringify(result),
+              content: JSON.stringify(safeResult),
             });
           } else {
             messages.push({
@@ -141,6 +204,49 @@ export class AgentLoop {
         role: "assistant",
         content: planResponse.text,
       });
+    }
+
+    if (intent.kind === "schedule" && scheduleAvailabilityProcessed) {
+      if (!scheduleSlots || scheduleSlots.length === 0) {
+        this.options.onProgress({
+          runId: this.options.runId,
+          status: "completed",
+          message: "No verified availability was found.",
+          createdAt: timestamp(),
+        });
+        this.options.onComplete({
+          id: this.options.runId,
+          conversationId: this.options.conversationId,
+          status: "completed",
+          intent,
+          createdAt: timestamp(),
+          updatedAt: timestamp(),
+          metadata: {
+            finalSummary: "No verified availability was found for the requested constraints.",
+          },
+        });
+        return;
+      }
+
+      const proposal = buildSchedulingProposal(intent, scheduleSlots);
+      this.options.onProgress({
+        runId: this.options.runId,
+        status: "waiting_for_approval",
+        message: "A combined meeting proposal is ready for approval.",
+        createdAt: timestamp(),
+      });
+      this.options.onComplete({
+        id: this.options.runId,
+        conversationId: this.options.conversationId,
+        status: "waiting_for_approval",
+        intent,
+        createdAt: timestamp(),
+        updatedAt: timestamp(),
+        metadata: {
+          scheduleProposal: proposal,
+        },
+      });
+      return;
     }
 
     this.options.onProgress({

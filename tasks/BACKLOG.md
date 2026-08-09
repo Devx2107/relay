@@ -56,22 +56,22 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 | ID      | Task                                                                                                           | Status  | Depends on                         |
 | ------- | -------------------------------------------------------------------------------------------------------------- | ------- | ---------------------------------- |
-| SCH-001 | Parse scheduling requests and identify attendees                                                               | BACKLOG | AGT-002, AGT-008                   |
-| SCH-002 | Handle missing information with editable defaults: 30 minutes, Google Meet, primary calendar, account timezone | BACKLOG | SCH-001                            |
-| SCH-003 | Find and rank 2–3 available slots                                                                              | BACKLOG | INT-006, SCH-001                   |
-| SCH-004 | Prepare meeting details, invitation, and optional email as one proposed operation                              | BACKLOG | INT-004, INT-007, SCH-002, SCH-003 |
+| SCH-001 | Parse scheduling requests and identify attendees                                                               | DONE    | AGT-002, AGT-008                   |
+| SCH-002 | Handle missing information with editable defaults: 30 minutes, Google Meet, primary calendar, account timezone | DONE    | SCH-001                            |
+| SCH-003 | Find and rank 2–3 available slots                                                                              | DONE    | INT-006, SCH-001                   |
+| SCH-004 | Prepare meeting details, invitation, and optional email as one proposed operation                              | DONE    | INT-004, INT-007, SCH-002, SCH-003 |
 | SCH-005 | Build one combined approval card and execute only after server approval                                        | BACKLOG | AGT-006, SCH-004                   |
 | SCH-006 | Verify created event/invitation and present success or actionable failure                                      | BACKLOG | AGT-007, SCH-005                   |
 
 ## P0 — Command Console UX
 
-| ID     | Task                                                                                | Status  | Depends on      |
-| ------ | ----------------------------------------------------------------------------------- | ------- | --------------- |
-| UI-001 | Build the single command-console shell and authenticated route                      | DONE    | FND-003         |
-| UI-002 | Render conversation messages, inline result cards, and action controls              | DONE    | AGT-008, UI-001 |
-| UI-003 | Render safe agent progress/status states                                            | DONE    | AGT-009, UI-002 |
-| UI-004 | Render approval, edit, cancel, and execute states for writes                        | BACKLOG | AGT-006, UI-002 |
-| UI-005 | Add loading, empty, integration-error, expired-session, and unavailable-slot states | BACKLOG | AGT-007, UI-002 |
+| ID     | Task                                                                                | Status | Depends on      |
+| ------ | ----------------------------------------------------------------------------------- | ------ | --------------- |
+| UI-001 | Build the single command-console shell and authenticated route                      | DONE   | FND-003         |
+| UI-002 | Render conversation messages, inline result cards, and action controls              | DONE   | AGT-008, UI-001 |
+| UI-003 | Render safe agent progress/status states                                            | DONE   | AGT-009, UI-002 |
+| UI-004 | Render approval, edit, cancel, and execute states for writes                        | DONE   | AGT-006, UI-002 |
+| UI-005 | Add loading, empty, integration-error, expired-session, and unavailable-slot states | DONE   | AGT-007, UI-002 |
 
 ## P0 — Verification and Security
 

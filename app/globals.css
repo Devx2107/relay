@@ -217,6 +217,84 @@ h2 {
   color: #9a5f4c;
 }
 
+.briefing-status a,
+.session-banner a,
+.history-status a,
+.command-error a {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.inline-retry-btn {
+  background: transparent;
+  border: 0;
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+  padding: 2px 0;
+  text-decoration: underline;
+}
+
+.inline-retry-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.source-status-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.source-status,
+.history-status,
+.command-error,
+.session-banner {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.source-status-error,
+.command-error,
+.session-banner {
+  color: #9a5f4c;
+}
+
+.session-banner {
+  margin-bottom: 18px;
+}
+
+.history-status {
+  justify-content: flex-start;
+  margin-bottom: 4px;
+}
+
+.availability-state {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.availability-state-error {
+  color: #9a5f4c;
+}
+
 .briefing-items {
   border-top: 1px solid var(--line);
 }
@@ -382,6 +460,11 @@ textarea::placeholder {
   padding-top: 14px;
 }
 
+.command-error {
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
 button[type="submit"] {
   align-items: center;
   background: var(--teal);
@@ -477,6 +560,17 @@ button[type="submit"]:disabled {
   animation: pulse 2s infinite ease-in-out;
 }
 
+.run-status-completed .status-indicator,
+.run-status-cancelled .status-indicator {
+  animation: none;
+  background: var(--muted);
+}
+
+.run-status-failed .status-indicator {
+  animation: none;
+  background: #c94a4a;
+}
+
 .run-summary {
   color: var(--ink);
   line-height: 1.5;
@@ -507,15 +601,68 @@ button[type="submit"]:disabled {
 }
 
 .approval-section {
+  background: rgba(245, 247, 242, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 12px;
   margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  padding: 14px;
 }
 
 .approval-section p {
   font-size: 13px;
   color: var(--muted);
   margin-bottom: 8px;
+}
+
+.approval-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.approval-kicker {
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.approval-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.reply-preview {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 150px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.reply-editor {
+  display: grid;
+  gap: 6px;
+}
+
+.reply-editor label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reply-editor textarea {
+  background: #fff;
+  min-height: 120px;
 }
 
 .approve-btn {
@@ -532,6 +679,49 @@ button[type="submit"]:disabled {
 
 .approve-btn:hover {
   opacity: 0.9;
+}
+
+.approve-btn:disabled,
+.cancel-btn:disabled,
+.secondary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cancel-btn,
+.secondary-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 8px 14px;
+}
+
+.cancel-btn:hover:not(:disabled),
+.secondary-btn:hover:not(:disabled) {
+  background: #fff;
+  color: var(--ink);
+}
+
+.action-error {
+  background: rgba(201, 74, 74, 0.1);
+  border-radius: 6px;
+  color: #a33d3d;
+  font-size: 12px;
+  margin-top: 10px;
+  padding: 8px;
+}
+
+.run-notice {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.run-notice-success {
+  color: var(--teal);
 }
 
 /* Markdown Rendering */

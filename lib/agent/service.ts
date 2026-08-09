@@ -4,6 +4,7 @@ import { GroqAdapter } from "./groq";
 import { CorsairIntegrationService } from "../integration";
 import type { AgentRun, AgentProgressEvent, AgentToolResult } from "./contracts";
 import { TOOL_DEFINITIONS, ToolRegistry } from "./tools";
+import { isValidTimeZone } from "./contracts";
 
 export interface AgentServiceOptions {
   registryFactory?: (integration: CorsairIntegrationService) => ToolRegistry;
@@ -15,13 +16,21 @@ export interface AgentServiceOptions {
   }) => Promise<void>;
 }
 
+export interface AgentScheduleContext {
+  accountTimeZone?: string;
+}
+
 export class AgentService {
   constructor(
     private readonly tenantId: string,
     private readonly options: AgentServiceOptions = {},
   ) {}
 
-  async startRun(conversationId: string, command: string): Promise<AgentRun> {
+  async startRun(
+    conversationId: string,
+    command: string,
+    scheduleContext: AgentScheduleContext = {},
+  ): Promise<AgentRun> {
     const supabase = await createClient();
 
     const { data: run, error } = await supabase
@@ -89,6 +98,10 @@ export class AgentService {
       conversationId,
       groq,
       registry,
+      accountTimeZone:
+        scheduleContext.accountTimeZone && isValidTimeZone(scheduleContext.accountTimeZone)
+          ? scheduleContext.accountTimeZone
+          : undefined,
       onProgress: async (event) => {
         events.push(event);
         await supabase
@@ -317,6 +330,31 @@ export class AgentService {
       .eq("id", run.id)
       .single();
 
+    return this.mapToAgentRun(updatedRun);
+  }
+
+  async cancelRun(runId: string): Promise<AgentRun> {
+    const supabase = await createClient();
+    const { data: run, error } = await supabase
+      .from("agent_runs")
+      .select()
+      .eq("id", runId)
+      .single();
+
+    if (error || !run) throw new Error("Run not found.");
+    if (run.status !== "waiting_for_approval") {
+      throw new Error("Run is no longer waiting for approval.");
+    }
+
+    const { data: updatedRun, error: updateError } = await supabase
+      .from("agent_runs")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", runId)
+      .eq("status", "waiting_for_approval")
+      .select()
+      .single();
+
+    if (updateError || !updatedRun) throw new Error("The approval could not be cancelled.");
     return this.mapToAgentRun(updatedRun);
   }
 

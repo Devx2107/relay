@@ -13,6 +13,13 @@ export type AgentRunStatus =
 
 export type IntentKind = "triage" | "schedule";
 export type ToolOperation = "read" | "write";
+export type ScheduleAttendeeStatus = "provided" | "missing" | "unresolved";
+export type ScheduleMeetingProvider = "google_meet";
+export type ScheduleCalendarId = "primary";
+export type ScheduleOptionSource = "user" | "default" | "fallback";
+
+export const MAX_SCHEDULE_ATTENDEES = 20;
+export const SCHEDULE_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 
 export interface TriageIntent {
   kind: "triage";
@@ -27,6 +34,22 @@ export interface ScheduleIntent {
   parameters: {
     request: string;
     attendees?: string[];
+    attendeeStatus: ScheduleAttendeeStatus;
+    unresolvedAttendees?: string[];
+    options: ScheduleOptions;
+  };
+}
+
+export interface ScheduleOptions {
+  durationMinutes: number;
+  meetingProvider: ScheduleMeetingProvider;
+  calendarId: ScheduleCalendarId;
+  timeZone: string;
+  sources: {
+    durationMinutes: ScheduleOptionSource;
+    meetingProvider: ScheduleOptionSource;
+    calendarId: ScheduleOptionSource;
+    timeZone: ScheduleOptionSource;
   };
 }
 
@@ -168,17 +191,100 @@ export function parseAgentIntent(value: unknown): AgentIntent {
 
   const request = requiredString(value.parameters.request, "schedule.parameters.request", 2000);
   const attendees = value.parameters.attendees;
+  const attendeeStatus = value.parameters.attendeeStatus;
+  const unresolvedAttendees = value.parameters.unresolvedAttendees;
+  const options = value.parameters.options;
+  if (
+    attendeeStatus !== "provided" &&
+    attendeeStatus !== "missing" &&
+    attendeeStatus !== "unresolved"
+  ) {
+    throw new ContractValidationError("schedule.parameters.attendeeStatus is invalid");
+  }
   if (
     attendees !== undefined &&
     (!Array.isArray(attendees) ||
-      attendees.some((attendee) => typeof attendee !== "string" || attendee.length === 0))
+      attendees.length === 0 ||
+      attendees.length > MAX_SCHEDULE_ATTENDEES ||
+      attendees.some(
+        (attendee) =>
+          typeof attendee !== "string" ||
+          attendee.length === 0 ||
+          attendee !== attendee.toLowerCase() ||
+          !SCHEDULE_EMAIL_PATTERN.test(attendee),
+      ) ||
+      new Set(attendees).size !== attendees.length)
   ) {
-    throw new ContractValidationError("schedule.parameters.attendees must be non-empty strings");
+    throw new ContractValidationError(
+      "schedule.parameters.attendees must contain unique canonical email addresses",
+    );
+  }
+  if (
+    unresolvedAttendees !== undefined &&
+    (!Array.isArray(unresolvedAttendees) ||
+      unresolvedAttendees.length === 0 ||
+      unresolvedAttendees.length > MAX_SCHEDULE_ATTENDEES ||
+      unresolvedAttendees.some(
+        (attendee) =>
+          typeof attendee !== "string" || attendee.trim().length === 0 || attendee.length > 120,
+      ))
+  ) {
+    throw new ContractValidationError("schedule.parameters.unresolvedAttendees is invalid");
+  }
+  if (
+    (attendeeStatus === "provided" && (!attendees || attendees.length === 0)) ||
+    (attendeeStatus === "missing" && (attendees || unresolvedAttendees)) ||
+    (attendeeStatus === "unresolved" && (!unresolvedAttendees || unresolvedAttendees.length === 0))
+  ) {
+    throw new ContractValidationError(
+      "schedule.parameters.attendeeStatus does not match attendee data",
+    );
+  }
+  if (!isRecord(options))
+    throw new ContractValidationError("schedule.parameters.options is required");
+  if (
+    typeof options.durationMinutes !== "number" ||
+    !Number.isInteger(options.durationMinutes) ||
+    options.durationMinutes < 5 ||
+    options.durationMinutes > 480 ||
+    options.meetingProvider !== "google_meet" ||
+    options.calendarId !== "primary" ||
+    typeof options.timeZone !== "string" ||
+    !isValidTimeZone(options.timeZone)
+  ) {
+    throw new ContractValidationError("schedule.parameters.options is invalid");
+  }
+  if (!isRecord(options.sources))
+    throw new ContractValidationError("schedule.parameters.options.sources is required");
+  for (const key of ["durationMinutes", "meetingProvider", "calendarId", "timeZone"]) {
+    if (
+      options.sources[key] !== "user" &&
+      options.sources[key] !== "default" &&
+      options.sources[key] !== "fallback"
+    ) {
+      throw new ContractValidationError("schedule.parameters.options.sources is invalid");
+    }
   }
   return {
     kind: "schedule",
-    parameters: { request, attendees: attendees as string[] | undefined },
+    parameters: {
+      request,
+      attendees: attendees as string[] | undefined,
+      attendeeStatus,
+      unresolvedAttendees: unresolvedAttendees as string[] | undefined,
+      options: options as unknown as ScheduleOptions,
+    },
   };
+}
+
+export function isValidTimeZone(value: unknown): value is string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 100) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function parseAgentToolCall(value: unknown): AgentToolCall {

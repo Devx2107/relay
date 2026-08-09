@@ -18,7 +18,7 @@ export interface TriageActionProposal {
   runId: string;
   triageItemId: string;
   action: TriageAction;
-  status: "waiting_for_approval" | "completed" | "failed";
+  status: "waiting_for_approval" | "completed" | "failed" | "cancelled";
   expiresAt: string;
   draftBody?: string;
 }
@@ -109,7 +109,8 @@ function safeProposal(row: unknown): TriageActionProposal | undefined {
     typeof meta.expiresAt !== "string" ||
     (value.status !== "waiting_for_approval" &&
       value.status !== "completed" &&
-      value.status !== "failed")
+      value.status !== "failed" &&
+      value.status !== "cancelled")
   ) {
     return undefined;
   }
@@ -220,6 +221,56 @@ export class TriageActionService {
     return (data ?? [])
       .map(safeProposal)
       .filter((proposal): proposal is TriageActionProposal => Boolean(proposal));
+  }
+
+  async updateReplyProposal(runId: string, body: string): Promise<TriageActionProposal> {
+    const supabase = await this.createServerClient();
+    const user = await this.requireUser(supabase);
+    const { data: run, error } = await supabase
+      .from("agent_runs")
+      .select("id, conversation_id, status, metadata")
+      .eq("id", runId)
+      .single();
+    if (error || !run)
+      throw new TriageActionError("The action proposal was not found.", "not_found");
+
+    await this.requireConversation(supabase, user.id, run.conversation_id);
+    if (run.status !== "waiting_for_approval")
+      throw new TriageActionError("The action proposal is no longer pending.", "conflict");
+
+    const metadata = run.metadata as Record<string, unknown> | null;
+    if (!metadata || metadata.action !== "reply" || typeof metadata.triageItemId !== "string") {
+      throw new TriageActionError("Only reply proposals can be edited.", "invalid_request");
+    }
+    const item = await this.getPendingItem(supabase, user.id, metadata.triageItemId);
+    const args = this.validateAndBuildArgs(
+      {
+        conversationId: run.conversation_id,
+        triageItemId: item.id,
+        action: "reply",
+        body,
+      },
+      item,
+    );
+    const { data, error: updateError } = await supabase
+      .from("agent_runs")
+      .update({
+        metadata: { ...metadata, proposedArgs: JSON.stringify(args), draftBody: args.body },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", runId)
+      .eq("status", "waiting_for_approval")
+      .select("id, status, metadata")
+      .single();
+    if (updateError || !data)
+      throw new TriageActionError(
+        "The reply proposal could not be updated.",
+        "integration_unavailable",
+      );
+    const proposal = safeProposal(data);
+    if (!proposal)
+      throw new TriageActionError("The action proposal is invalid.", "integration_unavailable");
+    return proposal;
   }
 
   async approve(runId: string): Promise<unknown> {
