@@ -16,37 +16,37 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 ## P0 — Integration Boundary
 
-| ID      | Task                                                                                      | Status  | Depends on       |
-| ------- | ----------------------------------------------------------------------------------------- | ------- | ---------------- |
-| INT-001 | Inspect and document the actual Corsair/MCP API and authentication contract               | DONE    | FND-001          |
-| INT-002 | Create a mockable Corsair integration boundary and tool result types                      | DONE    | INT-001          |
-| INT-003 | Implement Gmail read/search and message-detail access                                     | DONE    | INT-002, FND-003 |
-| INT-004 | Implement Gmail reply draft/send operations behind approval                               | DONE    | INT-003, AGT-004 |
-| INT-005 | Implement Calendar read/upcoming-event access                                             | DONE    | INT-002, FND-003 |
-| INT-006 | Implement Calendar availability lookup                                                    | DONE    | INT-005          |
-| INT-007 | Implement Calendar event creation and invitation details                                  | DONE    | INT-005, AGT-004 |
-| INT-008 | Add integration mocks, expired-session handling, rate-limit handling, and failure mapping | DONE    | INT-003, INT-005 |
+| ID      | Task                                                                                      | Status | Depends on       |
+| ------- | ----------------------------------------------------------------------------------------- | ------ | ---------------- |
+| INT-001 | Inspect and document the actual Corsair/MCP API and authentication contract               | DONE   | FND-001          |
+| INT-002 | Create a mockable Corsair integration boundary and tool result types                      | DONE   | INT-001          |
+| INT-003 | Implement Gmail read/search and message-detail access                                     | DONE   | INT-002, FND-003 |
+| INT-004 | Implement Gmail reply draft/send operations behind approval                               | DONE   | INT-003, AGT-004 |
+| INT-005 | Implement Calendar read/upcoming-event access                                             | DONE   | INT-002, FND-003 |
+| INT-006 | Implement Calendar availability lookup                                                    | DONE   | INT-005          |
+| INT-007 | Implement Calendar event creation and invitation details                                  | DONE   | INT-005, AGT-004 |
+| INT-008 | Add integration mocks, expired-session handling, rate-limit handling, and failure mapping | DONE   | INT-003, INT-005 |
 
 ## P0 — Shared Agent Foundation
 
-| ID      | Task                                                                                    | Status      | Depends on       |
-| ------- | --------------------------------------------------------------------------------------- | ----------- | ---------------- |
-| AGT-001 | Define agent-run, intent, tool-call, status, and user-facing error contracts            | DONE        | FND-004          |
-| AGT-002 | Add deterministic intent parsing for supported commands and validated structured output | DONE        | AGT-001          |
-| AGT-003 | Add Groq adapter with bounded prompts, free-model configuration, and graceful fallback  | DONE        | AGT-001          |
-| AGT-004 | Build shared read/write tool registry with server-side write classification             | DONE        | AGT-001, INT-002 |
-| AGT-005 | Implement shared loop: parse → plan → read → propose → approve → execute → verify       | DONE        | AGT-002, AGT-004 |
-| AGT-006 | Persist pending actions and enforce approval on the server, not only in the UI          | DONE        | FND-004, AGT-005 |
-| AGT-007 | Add action verification and safe, user-readable error handling                          | DONE        | AGT-005, INT-008 |
-| AGT-008 | Add conversational state for references within the current session                      | DONE        | FND-004, AGT-005 |
-| AGT-009 | Add agent progress/status events without exposing chain-of-thought                      | DONE        | AGT-005          |
+| ID      | Task                                                                                    | Status | Depends on       |
+| ------- | --------------------------------------------------------------------------------------- | ------ | ---------------- |
+| AGT-001 | Define agent-run, intent, tool-call, status, and user-facing error contracts            | DONE   | FND-004          |
+| AGT-002 | Add deterministic intent parsing for supported commands and validated structured output | DONE   | AGT-001          |
+| AGT-003 | Add Groq adapter with bounded prompts, free-model configuration, and graceful fallback  | DONE   | AGT-001          |
+| AGT-004 | Build shared read/write tool registry with server-side write classification             | DONE   | AGT-001, INT-002 |
+| AGT-005 | Implement shared loop: parse → plan → read → propose → approve → execute → verify       | DONE   | AGT-002, AGT-004 |
+| AGT-006 | Persist pending actions and enforce approval on the server, not only in the UI          | DONE   | FND-004, AGT-005 |
+| AGT-007 | Add action verification and safe, user-readable error handling                          | DONE   | AGT-005, INT-008 |
+| AGT-008 | Add conversational state for references within the current session                      | DONE   | FND-004, AGT-005 |
+| AGT-009 | Add agent progress/status events without exposing chain-of-thought                      | DONE   | AGT-005          |
 
 ## P0 — Triage
 
 | ID      | Task                                                                               | Status  | Depends on                |
 | ------- | ---------------------------------------------------------------------------------- | ------- | ------------------------- |
-| TRI-001 | Retrieve recent email and upcoming calendar inputs                                 | REVIEW | INT-003, INT-005          |
-| TRI-002 | Implement documented deterministic ranking signals and optional LLM classification | BACKLOG | AGT-003, TRI-001          |
+| TRI-001 | Retrieve recent email and upcoming calendar inputs                                 | DONE    | INT-003, INT-005          |
+| TRI-002 | Implement documented deterministic ranking signals and optional LLM classification | DONE    | AGT-003, TRI-001          |
 | TRI-003 | Define triage item persistence and 2–5 item response contract                      | BACKLOG | FND-004, TRI-002          |
 | TRI-004 | Implement proactive triage on console load                                         | BACKLOG | TRI-003, UI-001           |
 | TRI-005 | Add reply, ignore/archive, and supported snooze actions                            | BACKLOG | INT-004, TRI-003, AGT-006 |

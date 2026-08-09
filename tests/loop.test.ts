@@ -2,14 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentLoop } from "../lib/agent/loop";
 import { GroqAdapter } from "../lib/agent/groq";
 import { ToolRegistry } from "../lib/agent/tools";
-import type { AgentRun, AgentProgressEvent } from "../lib/agent/contracts";
 import type { IntegrationService } from "../lib/integration";
 
 describe("AgentLoop", () => {
   it("parses intent and handles invalid commands", async () => {
     const onProgress = vi.fn();
     const onComplete = vi.fn();
-    
+
     // We mock GroqAdapter but it won't be called for invalid commands
     const groq = new GroqAdapter({ apiKey: "test-key" });
     const registry = new ToolRegistry({} as IntegrationService);
@@ -26,18 +25,14 @@ describe("AgentLoop", () => {
 
     await loop.execute("invalid command", []);
 
-    expect(onProgress).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "received" })
-    );
-    expect(onProgress).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "failed" })
-    );
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "received" }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
 
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "failed",
-        error: expect.objectContaining({ code: "invalid_request" })
-      })
+        error: expect.objectContaining({ code: "invalid_request" }),
+      }),
     );
   });
 
@@ -57,29 +52,29 @@ describe("AgentLoop", () => {
             {
               id: "call-1",
               type: "function",
-              function: { name: "gmail.search_threads", arguments: '{"q":"in:inbox"}' }
-            }
+              function: { name: "gmail.search_threads", arguments: '{"q":"in:inbox"}' },
+            },
           ],
           usedFallback: false,
         });
       }
-      
+
       return Promise.resolve({
         toolCalls: [
           {
             id: "call-2",
             type: "function",
-            function: { name: "gmail.send", arguments: '{"threadId":"123","body":"ok"}' }
-          }
+            function: { name: "gmail.send", arguments: '{"threadId":"123","body":"ok"}' },
+          },
         ],
         usedFallback: false,
       });
     });
 
     const groq = { complete: groqComplete } as unknown as GroqAdapter;
-    
+
     const integration = {
-      executeTool: vi.fn().mockResolvedValue({ ok: true, data: { messages: [] } })
+      executeTool: vi.fn().mockResolvedValue({ ok: true, data: { messages: [] } }),
     } as unknown as IntegrationService;
 
     const registry = new ToolRegistry(integration);
@@ -96,26 +91,31 @@ describe("AgentLoop", () => {
 
     await loop.execute("show my unread emails", [
       { role: "user", content: "hi" },
-      { role: "assistant", content: "hello" }
+      { role: "assistant", content: "hello" },
     ]);
 
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "received" }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "planning" }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "reading" }));
-    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "waiting_for_approval" }));
+    expect(onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "waiting_for_approval" }),
+    );
 
-    expect(integration.executeTool).toHaveBeenCalledWith("tenant-2", expect.objectContaining({
-      action: "api.threads.list",
-      plugin: "gmail"
-    }));
+    expect(integration.executeTool).toHaveBeenCalledWith(
+      "tenant-2",
+      expect.objectContaining({
+        action: "api.threads.list",
+        plugin: "gmail",
+      }),
+    );
 
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "waiting_for_approval",
         metadata: expect.objectContaining({
-          proposedAction: "gmail.send"
-        })
-      })
+          proposedAction: "gmail.send",
+        }),
+      }),
     );
   });
 
@@ -150,7 +150,7 @@ describe("AgentLoop", () => {
         updatedAt: new Date().toISOString(),
       },
       { action: "gmail.send", args: { threadId: "123", body: "ok" } },
-      { toolCallId: "call-3", ok: true, data: { sent: true } }
+      { toolCallId: "call-3", ok: true, data: { sent: true } },
     );
 
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "verifying" }));
@@ -160,9 +160,9 @@ describe("AgentLoop", () => {
       expect.objectContaining({
         status: "completed",
         metadata: expect.objectContaining({
-          finalSummary: "The action was a success."
-        })
-      })
+          finalSummary: "The action was a success.",
+        }),
+      }),
     );
   });
 });

@@ -124,7 +124,10 @@ export function parseCommand(
               intent: parseAgentIntent({
                 kind: "triage",
                 parameters: {
-                  source: triageSource(command) === "all" ? prevParse.intent.parameters.source : triageSource(command),
+                  source:
+                    triageSource(command) === "all"
+                      ? prevParse.intent.parameters.source
+                      : triageSource(command),
                   limit: triageLimit(command) ?? prevParse.intent.parameters.limit,
                 },
               }),

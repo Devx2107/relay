@@ -10,7 +10,7 @@ The core application schema is defined in `supabase/migrations/20260808000001_ap
 - **`triage_items`**: Represents items requiring user attention (e.g., from Gmail or Calendar). Unique by `(user_id, source, source_id)`.
 - **`agent_runs`**: Tracks autonomous LLM executions tied to a conversation.
 
-Pending actions may be added to the schema when approval implementation begins. 
+Pending actions may be added to the schema when approval implementation begins.
 
 ## Security and Policies
 
@@ -26,4 +26,4 @@ Client-facing policies for these tables will be implemented in FND-005.
 - `triage_items(user_id)` references `users(id)` (cascade delete).
 - `agent_runs(conversation_id)` references `conversations(id)` (cascade delete).
 
-*Note: Further indexing (e.g., on foreign keys to optimize joins) and retention policies should be added prior to production.*
+_Note: Further indexing (e.g., on foreign keys to optimize joins) and retention policies should be added prior to production._

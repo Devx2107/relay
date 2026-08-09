@@ -22,13 +22,13 @@ describe("IntegrationService boundary", () => {
   it("returns mocked responses for registered calls", async () => {
     mockService.mockResponse("gmail", "api.messages.get", {
       content: "Success",
-      data: { id: "msg1", snippet: "Hello world" }
+      data: { id: "msg1", snippet: "Hello world" },
     });
 
     const call: ToolCall = {
       plugin: "gmail",
       action: "api.messages.get",
-      args: { id: "msg1" }
+      args: { id: "msg1" },
     };
 
     const result = await mockService.executeTool("tenant-123", call);
@@ -45,7 +45,7 @@ describe("IntegrationService boundary", () => {
     const call: ToolCall = {
       plugin: "gmail",
       action: "api.messages.unknown",
-      args: {}
+      args: {},
     };
 
     const result = await mockService.executeTool("tenant-123", call);
@@ -56,15 +56,15 @@ describe("IntegrationService boundary", () => {
 describe("CorsairIntegrationService error mapping", () => {
   it("maps AuthMissingError to isAuthMissing", async () => {
     const service = new CorsairIntegrationService();
-    
+
     vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
-      new AuthMissingError("mockplugin", "oauth_2", "Missing connection")
+      new AuthMissingError("mockplugin", "oauth_2", "Missing connection"),
     );
 
     const result = await service.executeTool("tenant-1", {
       plugin: "mockplugin",
       action: "action",
-      args: {}
+      args: {},
     });
 
     expect(result.error).toContain("Missing connection");
@@ -75,15 +75,15 @@ describe("CorsairIntegrationService error mapping", () => {
 
   it("maps PermissionRequiredError to isPermissionRequired", async () => {
     const service = new CorsairIntegrationService();
-    
+
     vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
-      new PermissionRequiredError("Permission denied")
+      new PermissionRequiredError("Permission denied"),
     );
 
     const result = await service.executeTool("tenant-1", {
       plugin: "mockplugin",
       action: "action",
-      args: {}
+      args: {},
     });
 
     expect(result.error).toContain("Permission denied");
@@ -92,15 +92,15 @@ describe("CorsairIntegrationService error mapping", () => {
 
   it("maps CorsairClientError 401 to isAuthMissing", async () => {
     const service = new CorsairIntegrationService();
-    
+
     vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
-      new CorsairClientError(401, "unauthorized", "Token expired")
+      new CorsairClientError(401, "unauthorized", "Token expired"),
     );
 
     const result = await service.executeTool("tenant-1", {
       plugin: "mockplugin",
       action: "action",
-      args: {}
+      args: {},
     });
 
     expect(result.error).toContain("Token expired");
@@ -109,15 +109,15 @@ describe("CorsairIntegrationService error mapping", () => {
 
   it("maps CorsairClientError 429 to isRateLimited", async () => {
     const service = new CorsairIntegrationService();
-    
+
     vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
-      new CorsairClientError(429, "rate_limited", "Too many requests")
+      new CorsairClientError(429, "rate_limited", "Too many requests"),
     );
 
     const result = await service.executeTool("tenant-1", {
       plugin: "mockplugin",
       action: "action",
-      args: {}
+      args: {},
     });
 
     expect(result.error).toContain("Too many requests");

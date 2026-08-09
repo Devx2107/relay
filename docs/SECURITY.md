@@ -6,7 +6,7 @@ The backend—not only the UI—must enforce that consequential writes have a pe
 
 ## Row Level Security (RLS)
 
-All user-owned data in Relay (`users`, `conversations`, `messages`, `triage_items`, and `agent_runs`) is protected by Row Level Security policies at the database level. 
+All user-owned data in Relay (`users`, `conversations`, `messages`, `triage_items`, and `agent_runs`) is protected by Row Level Security policies at the database level.
 
 - Access is restricted exclusively to the authenticated user based on the `auth.uid()` claim provided by Supabase Auth.
 - Users can only perform `SELECT`, `INSERT`, `UPDATE`, and `DELETE` operations on data directly owned by them or linked to their conversations.

@@ -41,10 +41,10 @@ export class AgentService {
         events.push(event);
         await supabase
           .from("agent_runs")
-          .update({ 
+          .update({
             status: event.status,
             metadata: { ...run.metadata, progressEvents: events },
-            updated_at: new Date().toISOString() 
+            updated_at: new Date().toISOString(),
           })
           .eq("id", run.id);
       },
@@ -101,7 +101,11 @@ export class AgentService {
     }
 
     const metadata = run.metadata as Record<string, unknown> | null;
-    if (!metadata || typeof metadata.proposedAction !== "string" || typeof metadata.proposedArgs !== "string") {
+    if (
+      !metadata ||
+      typeof metadata.proposedAction !== "string" ||
+      typeof metadata.proposedArgs !== "string"
+    ) {
       throw new Error("Run metadata does not contain a proposed action.");
     }
 
@@ -109,7 +113,9 @@ export class AgentService {
     const integration = new CorsairIntegrationService();
     const registry = new ToolRegistry(integration);
 
-    const events: AgentProgressEvent[] = metadata.progressEvents ? (metadata.progressEvents as AgentProgressEvent[]) : [];
+    const events: AgentProgressEvent[] = metadata.progressEvents
+      ? (metadata.progressEvents as AgentProgressEvent[])
+      : [];
 
     const loop = new AgentLoop({
       runId: run.id,
@@ -121,10 +127,10 @@ export class AgentService {
         events.push(event);
         await supabase
           .from("agent_runs")
-          .update({ 
-            status: event.status, 
+          .update({
+            status: event.status,
             metadata: { ...metadata, progressEvents: events },
-            updated_at: new Date().toISOString() 
+            updated_at: new Date().toISOString(),
           })
           .eq("id", run.id);
       },
@@ -142,7 +148,6 @@ export class AgentService {
     });
 
     try {
-        
       const toolDef = TOOL_DEFINITIONS.find((t) => t.id === metadata.proposedAction);
       const actionMessage = toolDef ? toolDef.description : "Executing action...";
 
@@ -153,11 +158,14 @@ export class AgentService {
         createdAt: new Date().toISOString(),
       });
 
-      await supabase.from("agent_runs").update({ 
-        status: "executing", 
-        metadata: { ...metadata, progressEvents: events },
-        updated_at: new Date().toISOString() 
-      }).eq("id", run.id);
+      await supabase
+        .from("agent_runs")
+        .update({
+          status: "executing",
+          metadata: { ...metadata, progressEvents: events },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", run.id);
 
       const result = await registry.execute(
         {
@@ -182,7 +190,10 @@ export class AgentService {
       } else {
         await loop.verify(
           this.mapToAgentRun(run),
-          { action: metadata.proposedAction as string, args: JSON.parse(metadata.proposedArgs as string) },
+          {
+            action: metadata.proposedAction as string,
+            args: JSON.parse(metadata.proposedArgs as string),
+          },
           result,
         );
       }
@@ -216,7 +227,11 @@ export class AgentService {
       id: row.id,
       conversationId: row.conversation_id,
       status: row.status,
-      error: row.error ? (typeof row.error === "string" ? JSON.parse(row.error) : row.error) : undefined,
+      error: row.error
+        ? typeof row.error === "string"
+          ? JSON.parse(row.error)
+          : row.error
+        : undefined,
       metadata: row.metadata,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

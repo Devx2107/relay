@@ -24,8 +24,10 @@ export class CorsairIntegrationService implements IntegrationService {
   async executeTool(tenantId: string, call: ToolCall): Promise<ToolResult> {
     try {
       // Resolve tenant-scoped corsair instance if multi-tenant wrapper is used.
-      const instance = (corsair as any).withTenant ? (corsair as any).withTenant(tenantId) : corsair;
-      
+      const instance = (corsair as any).withTenant
+        ? (corsair as any).withTenant(tenantId)
+        : corsair;
+
       const pluginInstance = instance[call.plugin];
       if (!pluginInstance) {
         throw new Error(`Plugin ${call.plugin} not found or not configured.`);
@@ -37,7 +39,7 @@ export class CorsairIntegrationService implements IntegrationService {
       for (const part of parts) {
         targetFn = targetFn[part];
         if (!targetFn) {
-           throw new Error(`Action ${call.action} not found on plugin ${call.plugin}.`);
+          throw new Error(`Action ${call.action} not found on plugin ${call.plugin}.`);
         }
       }
 
@@ -48,10 +50,9 @@ export class CorsairIntegrationService implements IntegrationService {
       // Execute target function
       const result = await targetFn(call.args);
       return { content: "Success", data: result };
-
     } catch (error: any) {
       const result: ToolResult = { content: "", error: error.message || String(error) };
-      
+
       if (error instanceof AuthMissingError) {
         result.isAuthMissing = true;
       } else if (error instanceof PermissionRequiredError) {
@@ -63,7 +64,7 @@ export class CorsairIntegrationService implements IntegrationService {
           result.isRateLimited = true;
         }
       }
-      
+
       return result;
     }
   }

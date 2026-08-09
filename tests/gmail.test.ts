@@ -14,7 +14,7 @@ describe("GmailService", () => {
   it("searchThreads sends the correct ToolCall", async () => {
     mockIntegration.mockResponse("gmail", "api.threads.list", {
       content: "Success",
-      data: { threads: [{ id: "t1", snippet: "Test thread" }] }
+      data: { threads: [{ id: "t1", snippet: "Test thread" }] },
     });
 
     const result = await gmail.searchThreads("tenant-123", "is:unread", 5);
@@ -33,7 +33,7 @@ describe("GmailService", () => {
   it("getThread sends the correct ToolCall", async () => {
     mockIntegration.mockResponse("gmail", "api.threads.get", {
       content: "Success",
-      data: { id: "t2", messages: [] }
+      data: { id: "t2", messages: [] },
     });
 
     const result = await gmail.getThread("tenant-456", "t2");
@@ -59,16 +59,16 @@ describe("GmailService", () => {
               headers: [
                 { name: "From", value: "Sender <sender@test.com>" },
                 { name: "Subject", value: "Hello" },
-                { name: "Message-ID", value: "<msg123@test.com>" }
-              ]
-            }
-          }
-        ]
-      }
+                { name: "Message-ID", value: "<msg123@test.com>" },
+              ],
+            },
+          },
+        ],
+      },
     });
     mockIntegration.mockResponse("gmail", "api.drafts.create", {
       content: "Success",
-      data: { id: "d1" }
+      data: { id: "d1" },
     });
 
     const result = await gmail.createReplyDraft("tenant-123", "t3", "My reply body");
@@ -77,7 +77,7 @@ describe("GmailService", () => {
     const calls = mockIntegration.getCalls();
     expect(calls.length).toBe(2);
     expect(calls[1].call.action).toBe("api.drafts.create");
-    
+
     const rawArgs = calls[1].call.args as any;
     const rawEmail = Buffer.from(rawArgs.draft.message.raw, "base64url").toString("utf-8");
     expect(rawEmail).toContain("To: Sender <sender@test.com>");
@@ -99,16 +99,16 @@ describe("GmailService", () => {
                 { name: "From", value: "Sender <sender@test.com>" },
                 { name: "Subject", value: "Re: Hello" },
                 { name: "Message-ID", value: "<msg124@test.com>" },
-                { name: "References", value: "<msg123@test.com>" }
-              ]
-            }
-          }
-        ]
-      }
+                { name: "References", value: "<msg123@test.com>" },
+              ],
+            },
+          },
+        ],
+      },
     });
     mockIntegration.mockResponse("gmail", "api.messages.send", {
       content: "Success",
-      data: { id: "m3" }
+      data: { id: "m3" },
     });
 
     const result = await gmail.sendReply("tenant-123", "t4", "Another reply");
@@ -117,7 +117,7 @@ describe("GmailService", () => {
     const calls = mockIntegration.getCalls();
     expect(calls.length).toBe(2);
     expect(calls[1].call.action).toBe("api.messages.send");
-    
+
     const rawArgs = calls[1].call.args as any;
     const rawEmail = Buffer.from(rawArgs.raw, "base64url").toString("utf-8");
     expect(rawEmail).toContain("To: Sender <sender@test.com>");

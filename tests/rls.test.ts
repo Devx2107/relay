@@ -23,19 +23,25 @@ runIf("Row Level Security Policies", () => {
 
     // Disable RLS temporarily to insert test data, or use service role
     // Since we connect using DATABASE_URL, we assume it's a superuser or service role
-    await client.query(`
+    await client.query(
+      `
       INSERT INTO auth.users (id, email) VALUES 
       ($1, 'userA@example.com'),
       ($2, 'userB@example.com')
       ON CONFLICT DO NOTHING
-    `, [userA_id, userB_id]);
+    `,
+      [userA_id, userB_id],
+    );
 
-    await client.query(`
+    await client.query(
+      `
       INSERT INTO public.users (id, email) VALUES 
       ($1, 'userA@example.com'),
       ($2, 'userB@example.com')
       ON CONFLICT DO NOTHING
-    `, [userA_id, userB_id]);
+    `,
+      [userA_id, userB_id],
+    );
   });
 
   afterAll(async () => {
@@ -67,11 +73,14 @@ runIf("Row Level Security Policies", () => {
   it("enforces RLS on conversations", async () => {
     // Act as postgres (service role) to insert a conversation for User A
     await client.query("RESET role;");
-    const convResult = await client.query(`
+    const convResult = await client.query(
+      `
       INSERT INTO public.conversations (user_id, title) 
       VALUES ($1, 'User A Conv') 
       RETURNING id
-    `, [userA_id]);
+    `,
+      [userA_id],
+    );
     const convId = convResult.rows[0].id;
 
     // Switch to User B
@@ -86,7 +95,9 @@ runIf("Row Level Security Policies", () => {
 
     // User B should not be able to insert for User A
     await expect(
-      client.query("INSERT INTO public.conversations (user_id, title) VALUES ($1, 'Hacked')", [userA_id])
+      client.query("INSERT INTO public.conversations (user_id, title) VALUES ($1, 'Hacked')", [
+        userA_id,
+      ]),
     ).rejects.toThrow();
   });
 });

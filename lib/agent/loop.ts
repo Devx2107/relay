@@ -1,10 +1,4 @@
-import type {
-  AgentRun,
-  AgentProgressEvent,
-  UserFacingError,
-  AgentIntent,
-  AgentToolResult,
-} from "./contracts";
+import type { AgentRun, AgentProgressEvent, UserFacingError, AgentToolResult } from "./contracts";
 import { parseCommand } from "./intents";
 import type { GroqAdapter, GroqMessage, GroqTool } from "./groq";
 import type { ToolRegistry, ToolDefinition } from "./tools";
@@ -93,7 +87,7 @@ export class AgentLoop {
         try {
           const args = JSON.parse(call.function.arguments);
           const toolDef = TOOL_DEFINITIONS.find((t) => t.id === call.function.name);
-          
+
           if (toolDef) {
             this.options.onProgress({
               runId: this.options.runId,
@@ -243,7 +237,11 @@ export class AgentLoop {
       },
     ];
 
-    const verifyResponse = await this.options.groq.complete(messages, "The action was executed successfully.", []);
+    const verifyResponse = await this.options.groq.complete(
+      messages,
+      "The action was executed successfully.",
+      [],
+    );
 
     if (verifyResponse.error) {
       this.failRun(verifyResponse.error, "Failed during verification phase.", timestamp());

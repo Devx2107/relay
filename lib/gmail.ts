@@ -7,13 +7,17 @@ export class GmailService {
    * Search for email threads.
    * By default, it queries the user's recent inbox.
    */
-  async searchThreads(tenantId: string, query: string = "in:inbox", maxResults: number = 10): Promise<ToolResult> {
+  async searchThreads(
+    tenantId: string,
+    query: string = "in:inbox",
+    maxResults: number = 10,
+  ): Promise<ToolResult> {
     const call: ToolCall = {
       plugin: "gmail",
       action: "api.threads.list",
-      args: { q: query, maxResults }
+      args: { q: query, maxResults },
     };
-    
+
     return this.integration.executeTool(tenantId, call);
   }
 
@@ -24,7 +28,7 @@ export class GmailService {
     const call: ToolCall = {
       plugin: "gmail",
       action: "api.threads.get",
-      args: { id: threadId, format: "full" }
+      args: { id: threadId, format: "full" },
     };
 
     return this.integration.executeTool(tenantId, call);
@@ -39,16 +43,19 @@ export class GmailService {
     if (!lastMessage) throw new Error("Thread has no messages");
 
     const headers = lastMessage.payload?.headers || [];
-    const getHeader = (name: string) => headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value;
+    const getHeader = (name: string) =>
+      headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value;
 
     const subject = getHeader("subject") || "";
     const replySubject = subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
     const messageId = getHeader("message-id");
-    
+
     // In a reply, we reply TO the person who sent the last message.
     // If we sent the last message, this might reply to ourselves, but for this hackathon we assume it's replying to the sender.
     const to = getHeader("from") || "";
-    const references = getHeader("references") ? `${getHeader("references")} ${messageId}` : messageId;
+    const references = getHeader("references")
+      ? `${getHeader("references")} ${messageId}`
+      : messageId;
 
     const emailLines = [
       `To: ${to}`,
@@ -89,9 +96,9 @@ export class GmailService {
           message: {
             threadId,
             raw,
-          }
-        }
-      }
+          },
+        },
+      },
     };
 
     return this.integration.executeTool(tenantId, call);
@@ -103,7 +110,7 @@ export class GmailService {
   async sendReply(tenantId: string, threadId: string, body: string): Promise<ToolResult> {
     const threadResult = await this.getThread(tenantId, threadId);
     if (threadResult.error || !threadResult.data) {
-      return threadResult; 
+      return threadResult;
     }
 
     const raw = this.constructReplyRaw(threadResult.data, body);
@@ -114,7 +121,7 @@ export class GmailService {
       args: {
         threadId,
         raw,
-      }
+      },
     };
 
     return this.integration.executeTool(tenantId, call);
