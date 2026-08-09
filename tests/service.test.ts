@@ -145,4 +145,172 @@ describe("AgentService", () => {
       }),
     );
   });
+
+  it("executes a scheduling proposal once and verifies the event and email", async () => {
+    const { ToolRegistry } = await import("../lib/agent/tools");
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { id: "event-1", htmlLink: "https://calendar.example/event-1" },
+      })
+      .mockResolvedValueOnce({ ok: true, data: { id: "message-1" } });
+    (ToolRegistry as any).mockImplementationOnce(() => ({ execute }));
+
+    const run = {
+      id: "schedule-run",
+      conversation_id: "conv-1",
+      status: "waiting_for_approval",
+      metadata: {
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        scheduleProposal: {
+          kind: "schedule_proposal",
+          version: 1,
+          event: {
+            summary: "Project kickoff",
+            start: "2026-08-10T04:00:00.000Z",
+            end: "2026-08-10T04:30:00.000Z",
+            timeZone: "Asia/Kolkata",
+            durationMinutes: 30,
+            meetingProvider: "google_meet",
+            calendarId: "primary",
+          },
+          invitation: { attendees: ["alice@example.com"] },
+          alternatives: [],
+          email: {
+            to: ["alice@example.com"],
+            subject: "Project kickoff",
+            body: "Please join.",
+          },
+        },
+      },
+    };
+    const finalRun = {
+      ...run,
+      status: "completed",
+      metadata: {
+        ...run.metadata,
+        scheduleExecution: { eventId: "event-1", emailMessageId: "message-1" },
+      },
+    };
+    const mockSingle = vi
+      .fn()
+      .mockResolvedValueOnce({ data: run })
+      .mockResolvedValueOnce({ data: run })
+      .mockResolvedValueOnce({ data: finalRun });
+    const queryBuilder: any = {
+      update: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: mockSingle,
+    };
+    mockSupabase.from.mockReturnValue(queryBuilder);
+
+    const result = await new AgentService("tenant-1").approveRun("schedule-run");
+
+    expect(result.status).toBe("completed");
+    expect(execute).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ toolId: "calendar.create_event", operation: "write" }),
+      true,
+    );
+    expect(execute).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ toolId: "gmail.send", operation: "write" }),
+      true,
+    );
+  });
+
+  it("rejects an expired scheduling approval before claiming or executing it", async () => {
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: "expired-run",
+        status: "waiting_for_approval",
+        metadata: {
+          expiresAt: new Date(Date.now() - 1_000).toISOString(),
+          scheduleProposal: {},
+        },
+      },
+    });
+    const mockUpdate = vi.fn().mockReturnThis();
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      update: mockUpdate,
+      single: mockSingle,
+    });
+
+    await expect(new AgentService("tenant-1").approveRun("expired-run")).rejects.toThrow(/expired/);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed scheduling proposal before claiming it", async () => {
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: "malformed-run",
+        status: "waiting_for_approval",
+        metadata: {
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          scheduleProposal: { kind: "schedule_proposal", version: 1 },
+        },
+      },
+    });
+    const mockUpdate = vi.fn().mockReturnThis();
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      update: mockUpdate,
+      single: mockSingle,
+    });
+
+    await expect(new AgentService("tenant-1").approveRun("malformed-run")).rejects.toThrow(
+      /invalid/,
+    );
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when another approval claims the run first", async () => {
+    const { ToolRegistry } = await import("../lib/agent/tools");
+    const execute = vi.fn();
+    (ToolRegistry as any).mockImplementationOnce(() => ({ execute }));
+    const mockSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          id: "claimed-run",
+          status: "waiting_for_approval",
+          metadata: {
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            scheduleProposal: {
+              kind: "schedule_proposal",
+              version: 1,
+              event: {
+                summary: "Project kickoff",
+                start: "2026-08-10T04:00:00.000Z",
+                end: "2026-08-10T04:30:00.000Z",
+                timeZone: "Asia/Kolkata",
+                durationMinutes: 30,
+                meetingProvider: "google_meet",
+                calendarId: "primary",
+              },
+              invitation: { attendees: ["alice@example.com"] },
+              alternatives: [],
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({ data: null, error: new Error("already claimed") });
+    const mockUpdate = vi.fn().mockReturnThis();
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      update: mockUpdate,
+      single: mockSingle,
+    });
+
+    await expect(new AgentService("tenant-1").approveRun("claimed-run")).rejects.toThrow(
+      /no longer waiting/,
+    );
+    expect(execute).not.toHaveBeenCalled();
+  });
 });

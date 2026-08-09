@@ -46,19 +46,51 @@ interface Run {
     action?: string;
     triageItemId?: string;
     draftBody?: string;
+    scheduleProposal?: ScheduleProposal;
+    scheduleExecution?: { eventId: string; eventLink?: string; emailMessageId?: string };
   };
   error?: { message?: string; action?: string; plugin?: string } | string;
   created_at: string;
+}
+
+interface ScheduleProposal {
+  kind: "schedule_proposal";
+  version: 1;
+  event: {
+    summary: string;
+    start: string;
+    end: string;
+    timeZone: string;
+    durationMinutes: number;
+    meetingProvider: "google_meet";
+    calendarId: "primary";
+  };
+  invitation: { attendees: string[] };
+  alternatives: Array<{ start: string; end: string; timeZone: string }>;
+  email?: { to: string[]; subject: string; body: string };
 }
 
 type MutationState = { runId: string; action: "approve" | "cancel" | "edit" } | null;
 type BriefingState = "loading" | "ready" | "error" | "session_expired";
 
 function actionLabel(run: Run): string {
+  if (run.metadata?.scheduleProposal) return "Create meeting and invitation";
   if (run.metadata?.action === "reply") return "Send email reply";
   if (run.metadata?.action === "ignore") return "Archive or dismiss item";
   if (run.metadata?.action === "snooze") return "Snooze item";
   return "Complete this action";
+}
+
+function formatScheduleTime(value: string, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone,
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
 }
 
 export default function CommandConsole({ email }: CommandConsoleProps) {
@@ -538,6 +570,79 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                             <strong>{actionLabel(item)}</strong>
                           </div>
                           <p>Review this action before Relay makes any consequential change.</p>
+                          {item.metadata?.scheduleProposal && (
+                            <div className="schedule-proposal" aria-label="Meeting proposal">
+                              <div className="schedule-proposal-title">
+                                {item.metadata.scheduleProposal.event.summary}
+                              </div>
+                              <dl className="schedule-proposal-details">
+                                <div>
+                                  <dt>Selected time</dt>
+                                  <dd>
+                                    {formatScheduleTime(
+                                      item.metadata.scheduleProposal.event.start,
+                                      item.metadata.scheduleProposal.event.timeZone,
+                                    )}
+                                    {" – "}
+                                    {formatScheduleTime(
+                                      item.metadata.scheduleProposal.event.end,
+                                      item.metadata.scheduleProposal.event.timeZone,
+                                    )}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Duration</dt>
+                                  <dd>
+                                    {item.metadata.scheduleProposal.event.durationMinutes} minutes
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Meeting</dt>
+                                  <dd>Google Meet · Primary calendar</dd>
+                                </div>
+                                <div>
+                                  <dt>Inviting</dt>
+                                  <dd>
+                                    {item.metadata.scheduleProposal.invitation.attendees.join(", ")}
+                                  </dd>
+                                </div>
+                              </dl>
+                              {item.metadata.scheduleProposal.alternatives.length > 0 && (
+                                <div className="schedule-alternatives">
+                                  <span>Other verified options</span>
+                                  <ul>
+                                    {item.metadata.scheduleProposal.alternatives.map(
+                                      (alternative) => (
+                                        <li key={alternative.start}>
+                                          {formatScheduleTime(
+                                            alternative.start,
+                                            alternative.timeZone,
+                                          )}
+                                          {" – "}
+                                          {formatScheduleTime(
+                                            alternative.end,
+                                            alternative.timeZone,
+                                          )}
+                                        </li>
+                                      ),
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                              {item.metadata.scheduleProposal.email && (
+                                <div className="schedule-email-preview">
+                                  <strong>Additional email</strong>
+                                  <span>
+                                    To: {item.metadata.scheduleProposal.email.to.join(", ")}
+                                  </span>
+                                  <span>
+                                    Subject: {item.metadata.scheduleProposal.email.subject}
+                                  </span>
+                                  <p>{item.metadata.scheduleProposal.email.body}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {item.metadata?.action === "reply" &&
                             item.metadata.draftBody &&
                             (editingRunId === item.id ? (
@@ -631,6 +736,16 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                       {item.status === "completed" && (
                         <div className="run-notice run-notice-success">
                           Action completed successfully.
+                          {item.metadata?.scheduleExecution?.eventLink && (
+                            <a
+                              href={item.metadata.scheduleExecution.eventLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="run-link"
+                            >
+                              Open calendar event
+                            </a>
+                          )}
                         </div>
                       )}
                     </div>

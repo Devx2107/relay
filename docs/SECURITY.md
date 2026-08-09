@@ -19,3 +19,5 @@ All user-owned data in Relay (`users`, `conversations`, `messages`, `triage_item
 - Service-role credentials bypass these policies and must therefore never be exposed to the browser.
 - The `rls.test.ts` suite validates these boundaries to prevent unauthorized data access across tenants.
   Scheduling proposals contain only validated meeting fields, canonical attendee addresses, and safe ranked slots. Raw Calendar busy intervals, provider responses, credentials, and model reasoning are excluded. Optional email content is bounded and represented for review only; SCH-004 performs no external write.
+
+SCH-005/006 revalidate the stored proposal at approval time, claim the run with a pending-state condition, and execute Calendar before optional email. A run is complete only after provider IDs verify the event and any email; partial event creation is recorded as failed execution rather than hidden or reported as success.

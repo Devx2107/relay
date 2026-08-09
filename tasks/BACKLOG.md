@@ -54,14 +54,14 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 ## P0 — Scheduling
 
-| ID      | Task                                                                                                           | Status  | Depends on                         |
-| ------- | -------------------------------------------------------------------------------------------------------------- | ------- | ---------------------------------- |
-| SCH-001 | Parse scheduling requests and identify attendees                                                               | DONE    | AGT-002, AGT-008                   |
-| SCH-002 | Handle missing information with editable defaults: 30 minutes, Google Meet, primary calendar, account timezone | DONE    | SCH-001                            |
-| SCH-003 | Find and rank 2–3 available slots                                                                              | DONE    | INT-006, SCH-001                   |
-| SCH-004 | Prepare meeting details, invitation, and optional email as one proposed operation                              | DONE    | INT-004, INT-007, SCH-002, SCH-003 |
-| SCH-005 | Build one combined approval card and execute only after server approval                                        | BACKLOG | AGT-006, SCH-004                   |
-| SCH-006 | Verify created event/invitation and present success or actionable failure                                      | BACKLOG | AGT-007, SCH-005                   |
+| ID      | Task                                                                                                           | Status | Depends on                         |
+| ------- | -------------------------------------------------------------------------------------------------------------- | ------ | ---------------------------------- |
+| SCH-001 | Parse scheduling requests and identify attendees                                                               | DONE   | AGT-002, AGT-008                   |
+| SCH-002 | Handle missing information with editable defaults: 30 minutes, Google Meet, primary calendar, account timezone | DONE   | SCH-001                            |
+| SCH-003 | Find and rank 2–3 available slots                                                                              | DONE   | INT-006, SCH-001                   |
+| SCH-004 | Prepare meeting details, invitation, and optional email as one proposed operation                              | DONE   | INT-004, INT-007, SCH-002, SCH-003 |
+| SCH-005 | Build one combined approval card and execute only after server approval                                        | REVIEW | AGT-006, SCH-004                   |
+| SCH-006 | Verify created event/invitation and present success or actionable failure                                      | REVIEW | AGT-007, SCH-005                   |
 
 ## P0 — Command Console UX
 
@@ -75,13 +75,13 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 ## P0 — Verification and Security
 
-| ID      | Task                                                                                       | Status  | Depends on                         |
-| ------- | ------------------------------------------------------------------------------------------ | ------- | ---------------------------------- |
-| QLT-001 | Add unit tests for intent parsing, triage ranking, scheduling logic, and approval policy   | BACKLOG | AGT-002, AGT-006, TRI-002, SCH-003 |
-| QLT-002 | Add mocked integration/API contract tests                                                  | BACKLOG | INT-008                            |
-| QLT-003 | Add end-to-end happy paths for triage action and approved scheduling                       | BACKLOG | TRI-006, SCH-006, UI-004           |
-| QLT-004 | Verify production build with no real credentials required at build time                    | BACKLOG | UI-005                             |
-| QLT-005 | Review secrets, OAuth scopes, authorization, prompt safety, and write approval enforcement | BACKLOG | FND-005, AGT-006                   |
+| ID      | Task                                                                                       | Status      | Depends on                         |
+| ------- | ------------------------------------------------------------------------------------------ | ----------- | ---------------------------------- |
+| QLT-001 | Add unit tests for intent parsing, triage ranking, scheduling logic, and approval policy   | REVIEW | AGT-002, AGT-006, TRI-002, SCH-003 |
+| QLT-002 | Add mocked integration/API contract tests                                                  | BACKLOG     | INT-008                            |
+| QLT-003 | Add end-to-end happy paths for triage action and approved scheduling                       | BACKLOG     | TRI-006, SCH-006, UI-004           |
+| QLT-004 | Verify production build with no real credentials required at build time                    | BACKLOG     | UI-005                             |
+| QLT-005 | Review secrets, OAuth scopes, authorization, prompt safety, and write approval enforcement | BACKLOG     | FND-005, AGT-006                   |
 
 ## P1 — Polish
 

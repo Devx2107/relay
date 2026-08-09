@@ -3,9 +3,10 @@ dotenv.config({ path: ".env.local" });
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
 
-// Skip RLS tests if no database URL is provided
+// RLS tests use a live database and are opt-in so placeholder local values do not
+// turn the normal unit-test command into a network-dependent suite.
 const dbUrl = process.env.DATABASE_URL;
-const runIf = dbUrl ? describe : describe.skip;
+const runIf = dbUrl && process.env.RUN_RLS_TESTS === "true" ? describe : describe.skip;
 
 runIf("Row Level Security Policies", () => {
   let client: Client;

@@ -244,6 +244,7 @@ export class AgentLoop {
         updatedAt: timestamp(),
         metadata: {
           scheduleProposal: proposal,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         },
       });
       return;

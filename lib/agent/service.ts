@@ -5,6 +5,7 @@ import { CorsairIntegrationService } from "../integration";
 import type { AgentRun, AgentProgressEvent, AgentToolResult } from "./contracts";
 import { TOOL_DEFINITIONS, ToolRegistry } from "./tools";
 import { isValidTimeZone } from "./contracts";
+import { executeSchedulingProposal, parseStoredSchedulingProposal } from "../scheduling-execution";
 
 export interface AgentServiceOptions {
   registryFactory?: (integration: CorsairIntegrationService) => ToolRegistry;
@@ -162,7 +163,12 @@ export class AgentService {
     }
 
     const metadata = run.metadata as Record<string, unknown> | null;
-    if (!metadata || typeof metadata.proposedAction !== "string" || !metadata.proposedArgs) {
+    const hasScheduleProposal = Boolean(metadata && metadata.scheduleProposal !== undefined);
+    if (
+      !metadata ||
+      (!hasScheduleProposal &&
+        (typeof metadata.proposedAction !== "string" || !metadata.proposedArgs))
+    ) {
       throw new Error("Run metadata does not contain a proposed action.");
     }
     if (
@@ -215,6 +221,10 @@ export class AgentService {
           }
           throw new Error(`Unknown local tool: ${toolId}`);
         });
+
+    if (hasScheduleProposal) {
+      return this.approveSchedulingRun(supabase, run, metadata, registry);
+    }
 
     const events: AgentProgressEvent[] = metadata.progressEvents
       ? (metadata.progressEvents as AgentProgressEvent[])
@@ -356,6 +366,104 @@ export class AgentService {
 
     if (updateError || !updatedRun) throw new Error("The approval could not be cancelled.");
     return this.mapToAgentRun(updatedRun);
+  }
+
+  private async approveSchedulingRun(
+    supabase: any,
+    run: any,
+    metadata: Record<string, unknown>,
+    registry: ToolRegistry,
+  ): Promise<AgentRun> {
+    let proposal;
+    try {
+      proposal = parseStoredSchedulingProposal(metadata.scheduleProposal);
+    } catch {
+      throw new Error("The scheduling proposal is invalid.");
+    }
+    const events: AgentProgressEvent[] = Array.isArray(metadata.progressEvents)
+      ? (metadata.progressEvents as AgentProgressEvent[])
+      : [];
+    const now = () => new Date().toISOString();
+    events.push({
+      runId: run.id,
+      status: "executing",
+      message: "Creating the approved calendar event and invitation.",
+      createdAt: now(),
+    });
+
+    const { data: claimedRun, error: claimError } = await supabase
+      .from("agent_runs")
+      .update({
+        status: "executing",
+        metadata: { ...metadata, progressEvents: events },
+        updated_at: now(),
+      })
+      .eq("id", run.id)
+      .eq("status", "waiting_for_approval")
+      .select()
+      .single();
+    if (claimError || !claimedRun) throw new Error("Run is no longer waiting for approval.");
+
+    const result = await executeSchedulingProposal(registry, this.tenantId, proposal, run.id);
+    if (!result.ok) {
+      events.push({
+        runId: run.id,
+        status: "failed",
+        message: result.partial
+          ? "The event was created, but the optional invitation email could not be verified."
+          : "The approved scheduling operation could not be completed.",
+        createdAt: now(),
+      });
+      await supabase
+        .from("agent_runs")
+        .update({
+          status: "failed",
+          error: JSON.stringify(result.error),
+          metadata: {
+            ...metadata,
+            progressEvents: events,
+            ...(result.partial ? { partialExecution: result.partial } : {}),
+          },
+          updated_at: now(),
+        })
+        .eq("id", run.id)
+        .eq("status", "executing");
+      return this.readRun(supabase, run.id);
+    }
+
+    events.push({
+      runId: run.id,
+      status: "verifying",
+      message: "Verified the created event and invitation.",
+      createdAt: now(),
+    });
+    events.push({
+      runId: run.id,
+      status: "completed",
+      message: "The meeting and invitation were completed successfully.",
+      createdAt: now(),
+    });
+    await supabase
+      .from("agent_runs")
+      .update({
+        status: "completed",
+        metadata: {
+          ...metadata,
+          progressEvents: events,
+          scheduleExecution: result.summary,
+          finalSummary: "The calendar event and invitation were completed successfully.",
+        },
+        updated_at: now(),
+      })
+      .eq("id", run.id)
+      .eq("status", "executing");
+    return this.readRun(supabase, run.id);
+  }
+
+  private async readRun(supabase: any, runId: string): Promise<AgentRun> {
+    const { data } = await supabase.from("agent_runs").select().eq("id", runId).single();
+    if (!data) throw new Error("The updated run could not be read.");
+    return this.mapToAgentRun(data);
   }
 
   private mapToAgentRun(row: any): AgentRun {

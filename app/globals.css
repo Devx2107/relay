@@ -628,6 +628,66 @@ button[type="submit"]:disabled {
   text-transform: uppercase;
 }
 
+.schedule-proposal {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.schedule-proposal-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.schedule-proposal-details {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.schedule-proposal-details div,
+.schedule-email-preview {
+  display: grid;
+  gap: 3px;
+}
+
+.schedule-proposal-details dt,
+.schedule-alternatives > span,
+.schedule-email-preview strong {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.schedule-proposal-details dd {
+  font-size: 13px;
+  margin: 0;
+}
+
+.schedule-alternatives ul {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 5px 0 0 18px;
+  padding: 0;
+}
+
+.schedule-email-preview {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.schedule-email-preview span,
+.schedule-email-preview p {
+  font-size: 12px;
+  margin: 0;
+}
+
 .approval-actions {
   align-items: center;
   display: flex;
@@ -722,6 +782,13 @@ button[type="submit"]:disabled {
 
 .run-notice-success {
   color: var(--teal);
+}
+
+.run-link {
+  color: var(--teal);
+  display: inline-block;
+  font-weight: 700;
+  margin-left: 8px;
 }
 
 /* Markdown Rendering */
