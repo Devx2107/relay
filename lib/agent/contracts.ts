@@ -95,6 +95,7 @@ export interface UserFacingError {
   message: string;
   retryable: boolean;
   action?: "sign_in" | "connect_integration" | "retry" | "review_approval";
+  plugin?: string;
 }
 
 export class ContractValidationError extends Error {
@@ -230,6 +231,7 @@ export function parseUserFacingError(value: unknown): UserFacingError {
     message: requiredString(value.message, "user-facing error message", 500),
     retryable: value.retryable,
     action: action as UserFacingError["action"],
+    plugin: typeof (value as any).plugin === "string" ? (value as any).plugin : undefined,
   };
 }
 

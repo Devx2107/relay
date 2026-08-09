@@ -41,7 +41,45 @@ export class AgentService {
     const integration = new CorsairIntegrationService();
     const registry = this.options.registryFactory
       ? this.options.registryFactory(integration)
-      : new ToolRegistry(integration);
+      : new ToolRegistry(integration, undefined, async (tenantId, toolId, args) => {
+          const sb = await createClient();
+          if (toolId === "triage.dismiss") {
+            const { error } = await sb
+              .from("triage_items")
+              .update({ status: "dismissed", updated_at: new Date().toISOString() })
+              .eq("user_id", tenantId)
+              .eq("id", args.triageItemId as string);
+            if (error) throw new Error("Failed to dismiss triage item.");
+            return { content: "Dismissed successfully." };
+          }
+          if (toolId === "triage.snooze") {
+            const preset = args.preset as string;
+            const duration =
+              preset === "one_hour"
+                ? 60 * 60 * 1000
+                : preset === "tomorrow"
+                  ? 24 * 60 * 60 * 1000
+                  : 7 * 24 * 60 * 60 * 1000;
+            const snoozedUntil = new Date(Date.now() + duration).toISOString();
+
+            const { data } = await sb
+              .from("triage_items")
+              .select("content")
+              .eq("id", args.triageItemId as string)
+              .eq("user_id", tenantId)
+              .single();
+            const content = { ...(data?.content || {}), snoozedUntil, snoozePreset: preset };
+
+            const { error } = await sb
+              .from("triage_items")
+              .update({ status: "snoozed", content, updated_at: new Date().toISOString() })
+              .eq("user_id", tenantId)
+              .eq("id", args.triageItemId as string);
+            if (error) throw new Error("Failed to snooze triage item.");
+            return { content: "Snoozed successfully." };
+          }
+          throw new Error(`Unknown local tool: ${toolId}`);
+        });
 
     const events: AgentProgressEvent[] = [];
 
@@ -82,11 +120,7 @@ export class AgentService {
       .order("created_at", { ascending: true })
       .limit(10);
 
-    const history = messagesData
-      ? messagesData.map((m: any) => ({ role: m.role, content: m.content }))
-      : [];
-
-    await loop.execute(command, history);
+    await loop.execute(command, messagesData ?? []);
 
     const { data: updatedRun } = await supabase
       .from("agent_runs")
@@ -115,11 +149,7 @@ export class AgentService {
     }
 
     const metadata = run.metadata as Record<string, unknown> | null;
-    if (
-      !metadata ||
-      typeof metadata.proposedAction !== "string" ||
-      typeof metadata.proposedArgs !== "string"
-    ) {
+    if (!metadata || typeof metadata.proposedAction !== "string" || !metadata.proposedArgs) {
       throw new Error("Run metadata does not contain a proposed action.");
     }
     if (
@@ -133,7 +163,45 @@ export class AgentService {
     const integration = new CorsairIntegrationService();
     const registry = this.options.registryFactory
       ? this.options.registryFactory(integration)
-      : new ToolRegistry(integration);
+      : new ToolRegistry(integration, undefined, async (tenantId, toolId, args) => {
+          const sb = await createClient();
+          if (toolId === "triage.dismiss") {
+            const { error } = await sb
+              .from("triage_items")
+              .update({ status: "dismissed", updated_at: new Date().toISOString() })
+              .eq("user_id", tenantId)
+              .eq("id", args.triageItemId as string);
+            if (error) throw new Error("Failed to dismiss triage item.");
+            return { content: "Dismissed successfully." };
+          }
+          if (toolId === "triage.snooze") {
+            const preset = args.preset as string;
+            const duration =
+              preset === "one_hour"
+                ? 60 * 60 * 1000
+                : preset === "tomorrow"
+                  ? 24 * 60 * 60 * 1000
+                  : 7 * 24 * 60 * 60 * 1000;
+            const snoozedUntil = new Date(Date.now() + duration).toISOString();
+
+            const { data } = await sb
+              .from("triage_items")
+              .select("content")
+              .eq("id", args.triageItemId as string)
+              .eq("user_id", tenantId)
+              .single();
+            const content = { ...(data?.content || {}), snoozedUntil, snoozePreset: preset };
+
+            const { error } = await sb
+              .from("triage_items")
+              .update({ status: "snoozed", content, updated_at: new Date().toISOString() })
+              .eq("user_id", tenantId)
+              .eq("id", args.triageItemId as string);
+            if (error) throw new Error("Failed to snooze triage item.");
+            return { content: "Snoozed successfully." };
+          }
+          throw new Error(`Unknown local tool: ${toolId}`);
+        });
 
     const events: AgentProgressEvent[] = metadata.progressEvents
       ? (metadata.progressEvents as AgentProgressEvent[])

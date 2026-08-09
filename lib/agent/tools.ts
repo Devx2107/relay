@@ -138,17 +138,29 @@ function userError(
   code: UserFacingError["code"],
   message: string,
   retryable = false,
+  action?: UserFacingError["action"],
+  plugin?: string,
 ): UserFacingError {
-  return { code, message, retryable };
+  return { code, message, retryable, action, plugin };
 }
 
-function mapIntegrationResult(toolCallId: string, result: ToolResult): AgentToolResult {
+function mapIntegrationResult(
+  toolCallId: string,
+  result: ToolResult,
+  plugin?: string,
+): AgentToolResult {
   if (result.error) {
     if (result.isAuthMissing) {
       return {
         toolCallId,
         ok: false,
-        error: userError("authentication_required", "Reconnect the integration to continue."),
+        error: userError(
+          "authentication_required",
+          "Reconnect the integration to continue.",
+          false,
+          "connect_integration",
+          plugin,
+        ),
         failure: { code: "auth_missing", retryable: false },
       };
     }
@@ -168,6 +180,7 @@ function mapIntegrationResult(toolCallId: string, result: ToolResult): AgentTool
         failure: { code: "rate_limited", retryable: true },
       };
     }
+    console.error("Integration execution error:", result.error);
     return {
       toolCallId,
       ok: false,
@@ -240,15 +253,21 @@ export class ToolRegistry {
       return mapIntegrationResult(
         request.id,
         await this.localExecutor(request.tenantId, request.toolId, request.args),
+        definition.plugin,
       );
+    }
+
+    let finalArgs = request.args;
+    if (request.toolId === "gmail.archive_thread") {
+      finalArgs = { ...finalArgs, removeLabelIds: ["INBOX"] };
     }
 
     const call: ToolCall = {
       plugin: definition.plugin,
       action: definition.action,
-      args: request.args,
+      args: finalArgs,
     };
     const result = await this.integration.executeTool(request.tenantId, call);
-    return mapIntegrationResult(request.id, result);
+    return mapIntegrationResult(request.id, result, definition.plugin);
   }
 }

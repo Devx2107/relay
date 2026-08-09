@@ -104,6 +104,15 @@ export class AgentLoop {
               args,
             });
 
+            if (
+              (result.failure?.code === "auth_missing" ||
+                result.failure?.code === "permission_required") &&
+              result.error
+            ) {
+              this.failRun(result.error, "Integration connection required.", timestamp());
+              return;
+            }
+
             messages.push({
               role: "tool",
               tool_call_id: call.id,
@@ -199,6 +208,9 @@ export class AgentLoop {
       intent,
       createdAt: timestamp(),
       updatedAt: timestamp(),
+      metadata: {
+        finalSummary: proposeResponse.text || "Task completed successfully.",
+      },
     });
   }
 

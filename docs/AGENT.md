@@ -22,7 +22,7 @@ The deterministic parser in `lib/agent/intents.ts` recognizes triage requests co
 
 ## Groq boundary
 
-`lib/agent/groq.ts` is an optional server-only adapter for bounded language tasks. It uses Groq’s OpenAI-compatible chat-completions endpoint, defaults to `llama-3.1-8b-instant`, and accepts `GROQ_API_KEY`/`GROQ_MODEL` from server environment configuration. Prompts are limited by message count and character count, completions are token-bounded, and every missing-key, timeout, provider-error, or malformed-response path returns the caller’s deterministic fallback with a safe `UserFacingError`.
+`lib/agent/groq.ts` is an optional server-only adapter for bounded language tasks. It uses Groq’s OpenAI-compatible chat-completions endpoint, defaults to `openai/gpt-oss-20b`, and accepts `GROQ_API_KEY`/`GROQ_MODEL` from server environment configuration. Prompts are limited by message count and character count, completions are token-bounded, and every missing-key, timeout, provider-error, or malformed-response path returns the caller’s deterministic fallback with a safe `UserFacingError`.
 
 Groq may classify or summarize ambiguous content, but it cannot execute tools, authorize writes, or replace deterministic policy checks.
 

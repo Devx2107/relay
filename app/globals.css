@@ -129,7 +129,7 @@ textarea:focus-visible {
   align-items: stretch;
   display: grid;
   gap: 24px;
-  grid-template-columns: minmax(0, 1.55fr) minmax(270px, 0.75fr);
+  grid-template-columns: 350px 1fr;
 }
 
 .briefing-panel,
@@ -143,7 +143,7 @@ textarea:focus-visible {
 
 .briefing-panel {
   min-height: 420px;
-  padding: 48px;
+  padding: 32px;
 }
 
 .context-panel {
@@ -417,6 +417,187 @@ button[type="submit"]:disabled {
   white-space: nowrap;
 }
 
+/* Conversation history */
+.conversation-history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.message-bubble {
+  padding: 14px 18px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 90%;
+}
+
+.message-user {
+  background: var(--teal);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.message-assistant,
+.message-system {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.run-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.run-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: capitalize;
+  margin-bottom: 8px;
+}
+
+.run-status .status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--teal);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.run-summary {
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.run-error {
+  color: #c94a4a;
+  background: rgba(201, 74, 74, 0.1);
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.connect-btn {
+  display: inline-block;
+  background: #c94a4a;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  margin-top: 8px;
+  transition: opacity 0.2s;
+}
+
+.connect-btn:hover {
+  opacity: 0.9;
+}
+
+.approval-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.approval-section p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.approve-btn {
+  background: var(--teal);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.approve-btn:hover {
+  opacity: 0.9;
+}
+
+/* Markdown Rendering */
+.markdown-body {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.markdown-body p {
+  margin-bottom: 12px;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 20px;
+  margin-bottom: 12px;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+  font-size: 12px;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--line);
+  font-weight: 600;
+  color: var(--teal);
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+}
+
 @media (max-width: 760px) {
   .console-shell {
     padding: 22px 18px 30px;
@@ -467,5 +648,68 @@ button[type="submit"]:disabled {
 
   .composer-note {
     line-height: 1.4;
+  }
+}
+
+/* Agent Progress Steps */
+.progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.progress-step.step-completed {
+  color: var(--teal);
+}
+
+.progress-step.step-executing {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.progress-step.step-failed {
+  color: #c94a4a;
+}
+
+.progress-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.icon-completed {
+  color: var(--teal);
+}
+
+.icon-failed {
+  color: #c94a4a;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--line);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }

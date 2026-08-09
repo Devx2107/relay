@@ -23,6 +23,7 @@ export function getCorsair() {
       projectApiKey: config.corsairProjectApiKey,
       signingSecret: config.corsairSigningSecret,
     },
+    multiTenancy: true,
     plugins: [gmail(), googlecalendar()],
   });
 

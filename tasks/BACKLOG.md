@@ -68,8 +68,8 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | ID     | Task                                                                                | Status  | Depends on      |
 | ------ | ----------------------------------------------------------------------------------- | ------- | --------------- |
 | UI-001 | Build the single command-console shell and authenticated route                      | DONE    | FND-003         |
-| UI-002 | Render conversation messages, inline result cards, and action controls              | BACKLOG | AGT-008, UI-001 |
-| UI-003 | Render safe agent progress/status states                                            | BACKLOG | AGT-009, UI-002 |
+| UI-002 | Render conversation messages, inline result cards, and action controls              | DONE    | AGT-008, UI-001 |
+| UI-003 | Render safe agent progress/status states                                            | DONE    | AGT-009, UI-002 |
 | UI-004 | Render approval, edit, cancel, and execute states for writes                        | BACKLOG | AGT-006, UI-002 |
 | UI-005 | Add loading, empty, integration-error, expired-session, and unavailable-slot states | BACKLOG | AGT-007, UI-002 |
 

@@ -1,7 +1,7 @@
 import type { UserFacingError } from "./contracts";
 
 export const DEFAULT_GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
-export const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
+export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
 
 const DEFAULT_MAX_INPUT_CHARACTERS = 6000;
 const DEFAULT_MAX_COMPLETION_TOKENS = 256;
