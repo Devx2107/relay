@@ -45,7 +45,7 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 | ID      | Task                                                                               | Status  | Depends on                |
 | ------- | ---------------------------------------------------------------------------------- | ------- | ------------------------- |
-| TRI-001 | Retrieve recent email and upcoming calendar inputs                                 | BACKLOG | INT-003, INT-005          |
+| TRI-001 | Retrieve recent email and upcoming calendar inputs                                 | REVIEW | INT-003, INT-005          |
 | TRI-002 | Implement documented deterministic ranking signals and optional LLM classification | BACKLOG | AGT-003, TRI-001          |
 | TRI-003 | Define triage item persistence and 2–5 item response contract                      | BACKLOG | FND-004, TRI-002          |
 | TRI-004 | Implement proactive triage on console load                                         | BACKLOG | TRI-003, UI-001           |

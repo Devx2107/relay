@@ -2,7 +2,13 @@ export type JsonPrimitive = string | number | boolean | null | { [key: string]: 
 export type SafeMetadata = Record<string, JsonPrimitive | any>;
 
 export type AgentRunStatus =
-  "queued" | "running" | "waiting_for_approval" | "completed" | "failed" | "cancelled";
+  | "queued"
+  | "running"
+  | "waiting_for_approval"
+  | "executing"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 export type IntentKind = "triage" | "schedule";
 export type ToolOperation = "read" | "write";
@@ -233,6 +239,7 @@ export function parseAgentRun(value: unknown): AgentRun {
     "queued",
     "running",
     "waiting_for_approval",
+    "executing",
     "completed",
     "failed",
     "cancelled",

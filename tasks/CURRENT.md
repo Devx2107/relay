@@ -1,53 +1,71 @@
 # Current Task
 
-## Current Task: Add agent progress/status events without exposing chain-of-thought (AGT-009)
+## Current Task: Retrieve recent email and upcoming calendar inputs (TRI-001)
 
 ## Goal
 
-Add detailed, user-friendly agent progress and status events to the system without exposing raw chain-of-thought, internal tool calls, or JSON structures.
+Provide the triage flow with a single, server-side retrieval step that gathers recent Gmail threads and upcoming Google Calendar events for the authenticated tenant.
 
 ## Context
 
-The UI needs to render detailed agent progress dynamically, such as when the agent is querying calendar events or searching emails. Emitting granular progress events per tool call prevents a black-box experience without leaking internal LLM rationale.
+TRI-001 is the next dependency-ready P0 task. The Gmail and Calendar adapters from INT-003 and INT-005 are implemented behind the mockable `IntegrationService` boundary. Triage currently has documentation describing email and calendar inputs, but no dedicated orchestration or normalized input contract. Ranking, classification, persistence, and UI presentation belong to later TRI tasks.
 
 ## Requirements
 
-- Emit progress events for individual tool calls using human-readable strings from `TOOL_DEFINITIONS`.
-- Persist progress events in the database inside the `metadata` JSONB block as `progressEvents`.
-- Ensure backwards compatibility with other metadata properties.
+- Retrieve recent inbox email using the existing `GmailService` adapter.
+- Retrieve upcoming calendar events from the current time using the existing `CalendarService` adapter.
+- Keep tenant identity and external calls on the server-side integration boundary.
+- Define a small, typed result contract that can carry both source results and source-specific integration failures.
+- Preserve the existing integration error categories so authentication, permission, rate-limit, and unavailable-service states remain actionable.
+- Make the retrieval logic mockable without requiring live Gmail or Calendar accounts.
 
 ## Acceptance Criteria
 
-- `AgentLoop.execute` emits tool-specific progress statuses.
-- `AgentService.startRun` tracks and persists these events to Supabase.
-- `AgentService.approveRun` tracks and persists events correctly.
-- `SafeMetadata` is strongly typed with `progressEvents`.
+- A dedicated triage input retrieval service can request recent email and upcoming events for a tenant.
+- Email and calendar requests use the existing adapters and expected default limits/time window.
+- Successful results are returned in a stable typed shape without ranking or classification.
+- A failure from one source is represented without leaking provider internals or preventing the other source from being handled according to the chosen contract.
+- Unit tests cover both-source success, adapter call arguments, and integration failure mapping.
+- No UI code calls Corsair, Gmail, or Calendar directly.
 
 ## Relevant Areas
 
-- `lib/agent/contracts.ts`
-- `lib/agent/loop.ts`
-- `lib/agent/service.ts`
+- `lib/gmail.ts`
+- `lib/calendar.ts`
+- `lib/integration.ts`
+- `lib/integration-mock.ts`
+- `lib/agent/tools.ts`
+- `docs/TRIAGE.md`
+- `tests/gmail.test.ts`
+- `tests/calendar.test.ts`
+- `tests/integration.test.ts`
 
 ## Constraints
 
-- Only use valid `AgentProgressStatus` values for `status`.
-- Do not expose LLM internals in the message text.
+- Do not implement deterministic ranking, LLM classification, triage-item persistence, or proactive console loading; those are TRI-002 through TRI-004.
+- Keep Corsair behind the existing integration boundary.
+- Do not expose credentials, raw provider errors, or internal agent reasoning.
+- Read operations may run automatically; no write operation is part of this task.
+- Normal tests must use mocks and must not require live accounts.
 
 ## Plan
 
-1. **Contracts**: Add `progressEvents?: AgentProgressEvent[]` to `SafeMetadata`.
-2. **Loop**: Replace generic "Reading data..." with per-tool calls to `onProgress`.
-3. **Service**: Track an array of `events` and persist them to `metadata.progressEvents`.
-4. **Verification**: Run `npm run test` to verify changes.
+1. **Inspect contracts**: Confirm the existing Gmail, Calendar, integration, and tool result shapes and identify the smallest triage-facing contract.
+2. **Implement retrieval**: Add a server-side triage input service that retrieves both sources through the existing adapters and maps failures safely.
+3. **Test**: Add focused unit tests for successful retrieval, tenant-scoped adapter calls, defaults, and partial/provider failures.
+4. **Review and verify**: Run formatting, lint, typecheck, tests, and build; review approval boundaries, secret handling, and scope.
+5. **Document status**: Update this task with verification results and mark the backlog task `REVIEW` only after implementation is verified.
 
 ## Verification
 
-- [x] Changed files formatted with Prettier.
+- [x] Pre-implementation inspection complete.
+- [x] Formatting passes for changed implementation and test files.
+- [ ] Lint passes; blocked by the repository's existing ESLint 9/Next config circular-structure error.
 - [x] Typecheck passes.
-- [x] Tests pass.
+- [x] Tests pass (50 tests, including 3 TRI-001 tests).
 - [x] Build passes.
+- [x] Security and scope review complete.
 
 ## Status
 
-DONE — AGT-009 is implemented.
+REVIEW — TRI-001 is implemented and verified; repository lint configuration remains an existing follow-up issue.
