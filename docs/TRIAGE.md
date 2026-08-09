@@ -38,15 +38,18 @@ The server response contains `items`, `generatedAt`, and optional per-source sta
 
 The authenticated console loads its briefing through the internal `GET /api/triage?limit=5` boundary. The endpoint uses `no-store` semantics, authenticates the Supabase session before integrations or persistence, retrieves both sources, ranks with the authenticated account as relevant-address context, upserts ranked candidates, and returns the TRI-003 response. Browser code never calls Corsair, Gmail, Calendar, Groq, or Supabase persistence directly.
 
-## TRI-005 actions
+## TRI-005 and TRI-006 actions
 
 Triage actions use the internal `/api/triage/actions` boundary. The server verifies the authenticated owner, pending item status, source, and supported action before creating a fifteen-minute `agent_runs` approval proposal. Provider writes execute only through the approved server-side tool registry.
 
-- Email `reply` creates a Gmail draft after approval; editable composition and sending remain TRI-006.
+- Email `reply` starts with `POST /api/triage/actions/draft`, which returns a bounded deterministic draft for the authenticated user to edit. The edited body is submitted to `POST /api/triage/actions` and stored in a fifteen-minute approval proposal.
+- Approving a reply proposal executes the server-side `gmail.send` tool with the validated final body. The email triage item is dismissed only after a successful provider result; provider failure leaves it pending.
 - Email `ignore` archives the thread by removing the `INBOX` label, then dismisses the local item after a successful provider result.
 - Calendar `ignore` is a local dismissal and does not call Calendar.
 - `snooze` is local and accepts only `one_hour`, `tomorrow`, or `next_week`; the item becomes `snoozed` with a bounded reappearance timestamp.
 
 Approval rechecks ownership, pending status, proposal expiration, and the expected tool/item relationship. Repeated or stale proposals are rejected. Responses contain only safe action status and generic provider errors.
+
+The draft endpoint does not call the provider or expose raw thread data. It exists to provide an editable starting point; the final body is validated again when the proposal is created and again when approval executes. UI rendering of the draft editor and approval card remains UI-004.
 
 Authentication failures return a safe `401` response. Unexpected orchestration or persistence failures return a safe retryable `503`; source-specific read failures remain represented in the response's per-source status while available items can still be shown. The console makes one briefing request per mount and does not poll or run background loops.

@@ -81,6 +81,45 @@ describe("TriageActionService", () => {
     });
   });
 
+  it("generates a bounded editable reply draft for an email item", async () => {
+    const supabase = client();
+    const service = new TriageActionService(async () => supabase as any);
+
+    await expect(
+      service.prepareReplyDraft({
+        conversationId: "conversation-1",
+        triageItemId: "item-1",
+      }),
+    ).resolves.toMatchObject({
+      triageItemId: "item-1",
+      threadId: "thread-1",
+      editable: true,
+      body: expect.stringContaining("Thanks for reaching out"),
+    });
+  });
+
+  it("stores the edited reply body as a send proposal", async () => {
+    const supabase = client();
+    const service = new TriageActionService(async () => supabase as any);
+
+    const proposal = await service.createProposal({
+      conversationId: "conversation-1",
+      triageItemId: "item-1",
+      action: "reply",
+      body: "  The edited response.  ",
+    });
+
+    expect(proposal).toMatchObject({
+      action: "reply",
+      draftBody: "The edited response.",
+    });
+    expect((state.inserted?.metadata as any).proposedAction).toBe("gmail.send");
+    expect(JSON.parse((state.inserted?.metadata as any).proposedArgs)).toEqual({
+      threadId: "thread-1",
+      body: "The edited response.",
+    });
+  });
+
   it("rejects unsupported reply and arbitrary snooze values", async () => {
     const supabase = client();
     const service = new TriageActionService(async () => supabase as any);

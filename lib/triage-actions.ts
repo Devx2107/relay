@@ -20,6 +20,14 @@ export interface TriageActionProposal {
   action: TriageAction;
   status: "waiting_for_approval" | "completed" | "failed";
   expiresAt: string;
+  draftBody?: string;
+}
+
+export interface ReplyDraft {
+  triageItemId: string;
+  threadId: string;
+  body: string;
+  editable: true;
 }
 
 export class TriageActionError extends Error {
@@ -111,11 +119,29 @@ function safeProposal(row: unknown): TriageActionProposal | undefined {
     action: meta.action,
     status: value.status,
     expiresAt: meta.expiresAt,
+    draftBody: typeof meta.draftBody === "string" ? meta.draftBody : undefined,
   };
 }
 
 export class TriageActionService {
   constructor(private readonly createServerClient: typeof createClient = createClient) {}
+
+  async prepareReplyDraft(
+    request: Pick<CreateTriageActionRequest, "conversationId" | "triageItemId">,
+  ): Promise<ReplyDraft> {
+    const supabase = await this.createServerClient();
+    const user = await this.requireUser(supabase);
+    const item = await this.getPendingItem(supabase, user.id, request.triageItemId);
+    this.requireReplyAction(item);
+    await this.requireConversation(supabase, user.id, request.conversationId);
+
+    return {
+      triageItemId: item.id,
+      threadId: item.source_id,
+      body: "Hi,\n\nThanks for reaching out. I’ll review this and get back to you shortly.\n\nBest,\n",
+      editable: true,
+    };
+  }
 
   async createProposal(request: CreateTriageActionRequest): Promise<TriageActionProposal> {
     const supabase = await this.createServerClient();
@@ -123,15 +149,7 @@ export class TriageActionService {
     const item = await this.getPendingItem(supabase, user.id, request.triageItemId);
     const args = this.validateAndBuildArgs(request, item);
 
-    const { data: conversation, error: conversationError } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("id", request.conversationId)
-      .eq("user_id", user.id)
-      .single();
-    if (conversationError || !conversation) {
-      throw new TriageActionError("The conversation was not found.", "not_found");
-    }
+    const conversation = await this.requireConversation(supabase, user.id, request.conversationId);
 
     const { data: existingRuns } = await supabase
       .from("agent_runs")
@@ -166,6 +184,7 @@ export class TriageActionService {
           triageItemId: item.id,
           action: request.action,
           expiresAt,
+          ...(request.action === "reply" ? { draftBody: args.body } : {}),
         },
       })
       .select("id, status, metadata")
@@ -262,6 +281,19 @@ export class TriageActionService {
     return { id: data.user.id };
   }
 
+  private async requireConversation(supabase: any, userId: string, conversationId: string) {
+    const { data: conversation, error } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .eq("user_id", userId)
+      .single();
+    if (error || !conversation) {
+      throw new TriageActionError("The conversation was not found.", "not_found");
+    }
+    return conversation as { id: string };
+  }
+
   private async getPendingItem(supabase: any, userId: string, itemId: string) {
     const { data, error } = await supabase
       .from("triage_items")
@@ -290,14 +322,13 @@ export class TriageActionService {
       );
     }
     if (request.action === "reply") {
+      this.requireReplyAction(item);
       if (
-        item.source !== "email" ||
         typeof request.body !== "string" ||
         request.body.trim().length === 0 ||
         request.body.length > 5000
-      ) {
+      )
         throw new TriageActionError("A valid email reply body is required.", "invalid_request");
-      }
       return { threadId: item.source_id, body: request.body.trim() };
     }
     if (request.action === "ignore") {
@@ -315,9 +346,23 @@ export class TriageActionService {
   }
 
   private toolId(action: TriageAction, source: "email" | "calendar"): string {
-    if (action === "reply") return "gmail.reply_draft";
+    if (action === "reply") return "gmail.send";
     if (action === "ignore") return source === "email" ? "gmail.archive_thread" : "triage.dismiss";
     return "triage.snooze";
+  }
+
+  private requireReplyAction(item: NonNullable<ReturnType<typeof safeRow>>) {
+    const supportedActions = item.content.supportedActions;
+    if (
+      item.source !== "email" ||
+      !Array.isArray(supportedActions) ||
+      !supportedActions.includes("reply")
+    ) {
+      throw new TriageActionError(
+        "Reply is not supported for this triage item.",
+        "invalid_request",
+      );
+    }
   }
 
   private argumentsMatch(
@@ -368,10 +413,16 @@ export class TriageActionService {
   ) {
     if (!result || result.error)
       throw new TriageActionError("The action could not be completed.", "integration_unavailable");
-    if (toolId === "gmail.reply_draft") return;
     const itemId = typeof metadata.triageItemId === "string" ? metadata.triageItemId : undefined;
-    const sourceId = typeof args.id === "string" ? args.id : undefined;
-    if (toolId === "gmail.archive_thread" && (!sourceId || !itemId))
+    const sourceId =
+      toolId === "gmail.send"
+        ? typeof args.threadId === "string"
+          ? args.threadId
+          : undefined
+        : typeof args.id === "string"
+          ? args.id
+          : undefined;
+    if ((toolId === "gmail.archive_thread" || toolId === "gmail.send") && (!sourceId || !itemId))
       throw new TriageActionError("The action arguments are invalid.", "invalid_request");
     if (toolId !== "gmail.archive_thread" && !itemId)
       throw new TriageActionError("The action arguments are invalid.", "invalid_request");
