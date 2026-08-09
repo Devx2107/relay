@@ -48,9 +48,9 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | TRI-001 | Retrieve recent email and upcoming calendar inputs                                 | DONE   | INT-003, INT-005          |
 | TRI-002 | Implement documented deterministic ranking signals and optional LLM classification | DONE   | AGT-003, TRI-001          |
 | TRI-003 | Define triage item persistence and 2–5 item response contract                      | DONE   | FND-004, TRI-002          |
-| TRI-004 | Implement proactive triage on console load                                         | REVIEW | TRI-003, UI-001           |
-| TRI-005 | Add reply, ignore/archive, and supported snooze actions                            | REVIEW | INT-004, TRI-003, AGT-006 |
-| TRI-006 | Add editable reply draft and approval/send flow                                    | REVIEW | TRI-005                   |
+| TRI-004 | Implement proactive triage on console load                                         | DONE   | TRI-003, UI-001           |
+| TRI-005 | Add reply, ignore/archive, and supported snooze actions                            | DONE   | INT-004, TRI-003, AGT-006 |
+| TRI-006 | Add editable reply draft and approval/send flow                                    | DONE   | TRI-005                   |
 
 ## P0 — Scheduling
 

@@ -204,6 +204,8 @@ export class TriageActionService {
   async listProposals(conversationId: string): Promise<TriageActionProposal[]> {
     const supabase = await this.createServerClient();
     const user = await this.requireUser(supabase);
+    await this.requireConversation(supabase, user.id, conversationId);
+
     const { data, error } = await supabase
       .from("agent_runs")
       .select("id, status, metadata")
@@ -215,7 +217,6 @@ export class TriageActionService {
         "Action proposals are temporarily unavailable.",
         "integration_unavailable",
       );
-    void user;
     return (data ?? [])
       .map(safeProposal)
       .filter((proposal): proposal is TriageActionProposal => Boolean(proposal));
@@ -231,6 +232,8 @@ export class TriageActionService {
       .single();
     if (error || !run)
       throw new TriageActionError("The action proposal was not found.", "not_found");
+
+    await this.requireConversation(supabase, user.id, run.conversation_id);
 
     const metadata = run.metadata as Record<string, unknown> | null;
     if (!metadata || typeof metadata.triageItemId !== "string" || !isAction(metadata.action)) {

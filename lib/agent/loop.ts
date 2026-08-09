@@ -100,7 +100,7 @@ export class AgentLoop {
               id: call.id,
               tenantId: this.options.tenantId,
               toolId: toolDef.id,
-              operation: "read",
+              operation: toolDef.operation,
               args,
             });
 
