@@ -106,7 +106,7 @@ describe("triage ranking", () => {
       urgency: 25,
       responseExpectation: 20,
       deadline: 12,
-      senderRelevance: 10,
+      senderRelevance: 5,
       recency: 5,
       explicitUrgency: 5,
     });

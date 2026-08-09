@@ -189,7 +189,9 @@ function scoreSenderRelevance(
 ): number {
   if (source === "email") {
     if (!sender) return 0;
-    return relevantAddresses.size > 0 && relevantAddresses.has(normalizeEmail(sender)) ? 5 : 10;
+    return relevantAddresses.size > 0 && relevantAddresses.has(normalizeEmail(sender))
+      ? TRIAGE_SIGNAL_WEIGHTS.senderRelevance
+      : 5;
   }
   if (attendees.length === 0) return 0;
   return attendees.some((attendee) => relevantAddresses.has(normalizeEmail(attendee)))

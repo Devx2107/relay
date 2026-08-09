@@ -46,8 +46,18 @@ export class TriageBriefingService {
     if (error || !user) throw new TriageBriefingAuthError();
 
     const inputs = await this.inputService.retrieve(user.id);
+
+    // Fetch user settings to get VIP contacts
+    const { data: settings } = await supabase
+      .from("user_settings")
+      .select("vip_contacts")
+      .eq("user_id", user.id)
+      .single();
+
+    const vipContacts: string[] = settings?.vip_contacts || [];
+
     const ranked = await rankTriageInputs(inputs, {
-      relevantAddresses: user.email ? [user.email] : [],
+      relevantAddresses: [...(user.email ? [user.email] : []), ...vipContacts],
       classifier: this.classifier,
     });
 

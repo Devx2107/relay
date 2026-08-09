@@ -18,6 +18,13 @@ const inputs: TriageInputs = {
 function mockClient(user: { id: string; email?: string } | null) {
   return {
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) },
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { vip_contacts: [] } }),
+        }),
+      }),
+    }),
   };
 }
 
