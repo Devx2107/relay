@@ -47,9 +47,9 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 | ------- | ---------------------------------------------------------------------------------- | ------- | ------------------------- |
 | TRI-001 | Retrieve recent email and upcoming calendar inputs                                 | DONE    | INT-003, INT-005          |
 | TRI-002 | Implement documented deterministic ranking signals and optional LLM classification | DONE    | AGT-003, TRI-001          |
-| TRI-003 | Define triage item persistence and 2–5 item response contract                      | BACKLOG | FND-004, TRI-002          |
-| TRI-004 | Implement proactive triage on console load                                         | BACKLOG | TRI-003, UI-001           |
-| TRI-005 | Add reply, ignore/archive, and supported snooze actions                            | BACKLOG | INT-004, TRI-003, AGT-006 |
+| TRI-003 | Define triage item persistence and 2–5 item response contract                      | DONE    | FND-004, TRI-002          |
+| TRI-004 | Implement proactive triage on console load                                         | REVIEW  | TRI-003, UI-001           |
+| TRI-005 | Add reply, ignore/archive, and supported snooze actions                            | REVIEW  | INT-004, TRI-003, AGT-006 |
 | TRI-006 | Add editable reply draft and approval/send flow                                    | BACKLOG | TRI-005                   |
 
 ## P0 — Scheduling
@@ -67,7 +67,7 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 | ID     | Task                                                                                | Status  | Depends on      |
 | ------ | ----------------------------------------------------------------------------------- | ------- | --------------- |
-| UI-001 | Build the single command-console shell and authenticated route                      | BACKLOG | FND-003         |
+| UI-001 | Build the single command-console shell and authenticated route                      | DONE    | FND-003         |
 | UI-002 | Render conversation messages, inline result cards, and action controls              | BACKLOG | AGT-008, UI-001 |
 | UI-003 | Render safe agent progress/status states                                            | BACKLOG | AGT-009, UI-002 |
 | UI-004 | Render approval, edit, cancel, and execute states for writes                        | BACKLOG | AGT-006, UI-002 |

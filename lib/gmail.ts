@@ -126,4 +126,13 @@ export class GmailService {
 
     return this.integration.executeTool(tenantId, call);
   }
+
+  /** Archive a thread by removing it from the inbox. */
+  async archiveThread(tenantId: string, threadId: string): Promise<ToolResult> {
+    return this.integration.executeTool(tenantId, {
+      plugin: "gmail",
+      action: "api.threads.modify",
+      args: { id: threadId, removeLabelIds: ["INBOX"] },
+    });
+  }
 }

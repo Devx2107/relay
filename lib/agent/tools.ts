@@ -21,6 +21,12 @@ export interface RegistryToolCall {
   args: Record<string, unknown>;
 }
 
+export type LocalToolExecutor = (
+  tenantId: string,
+  toolId: string,
+  args: Record<string, unknown>,
+) => Promise<ToolResult>;
+
 export class ToolRegistryError extends Error {
   constructor(message: string) {
     super(message);
@@ -82,6 +88,31 @@ export const TOOL_DEFINITIONS = [
     availability: "available",
     description: "Send an email.",
     argumentNames: ["threadId", "body"],
+  },
+  {
+    id: "gmail.archive_thread",
+    plugin: "gmail",
+    action: "api.threads.modify",
+    operation: "write",
+    availability: "available",
+    description: "Archive an email thread.",
+    argumentNames: ["id"],
+  },
+  {
+    id: "triage.dismiss",
+    plugin: "relay",
+    operation: "write",
+    availability: "available",
+    description: "Dismiss a calendar triage item locally.",
+    argumentNames: ["triageItemId"],
+  },
+  {
+    id: "triage.snooze",
+    plugin: "relay",
+    operation: "write",
+    availability: "available",
+    description: "Snooze a triage item using a supported preset.",
+    argumentNames: ["triageItemId", "preset"],
   },
   {
     id: "calendar.create_event",
@@ -158,6 +189,7 @@ export class ToolRegistry {
   constructor(
     private readonly integration: IntegrationService,
     definitions: readonly ToolDefinition[] = TOOL_DEFINITIONS,
+    private readonly localExecutor?: LocalToolExecutor,
   ) {
     this.definitions = new Map(definitions.map((definition) => [definition.id, definition]));
   }
@@ -202,7 +234,13 @@ export class ToolRegistry {
     }
 
     if (!definition.action) {
-      throw new ToolRegistryError(`Available tool ${request.toolId} has no integration action`);
+      if (!this.localExecutor) {
+        throw new ToolRegistryError(`Available tool ${request.toolId} has no executor`);
+      }
+      return mapIntegrationResult(
+        request.id,
+        await this.localExecutor(request.tenantId, request.toolId, request.args),
+      );
     }
 
     const call: ToolCall = {

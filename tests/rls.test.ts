@@ -94,10 +94,45 @@ runIf("Row Level Security Policies", () => {
     expect(result.rows.length).toBe(0);
 
     // User B should not be able to insert for User A
+    await client.query("SAVEPOINT conversation_insert_check;");
     await expect(
       client.query("INSERT INTO public.conversations (user_id, title) VALUES ($1, 'Hacked')", [
         userA_id,
       ]),
     ).rejects.toThrow();
+    await client.query("ROLLBACK TO SAVEPOINT conversation_insert_check;");
+  });
+
+  it("enforces RLS on triage items", async () => {
+    await client.query("RESET role;");
+    const itemResult = await client.query(
+      `
+      INSERT INTO public.triage_items (user_id, source, source_id, content)
+      VALUES ($1, 'email', 'thread-rls', '{"summary":"Private"}')
+      RETURNING id
+    `,
+      [userA_id],
+    );
+    const itemId = itemResult.rows[0].id;
+
+    await client.query(`
+      SET LOCAL role authenticated;
+      SELECT set_config('request.jwt.claims', '{"sub": "${userB_id}"}', true);
+    `);
+
+    const result = await client.query("SELECT * FROM public.triage_items WHERE id = $1", [itemId]);
+    expect(result.rows.length).toBe(0);
+
+    await client.query("SAVEPOINT triage_insert_check;");
+    await expect(
+      client.query(
+        `
+        INSERT INTO public.triage_items (user_id, source, source_id, content)
+        VALUES ($1, 'email', 'hacked-thread', '{}')
+      `,
+        [userA_id],
+      ),
+    ).rejects.toThrow();
+    await client.query("ROLLBACK TO SAVEPOINT triage_insert_check;");
   });
 });

@@ -1,13 +1,25 @@
 import { createClient } from "../supabase/server";
 import { AgentLoop } from "./loop";
 import { GroqAdapter } from "./groq";
-import { ToolRegistry } from "./tools";
 import { CorsairIntegrationService } from "../integration";
-import type { AgentRun, AgentProgressEvent } from "./contracts";
-import { TOOL_DEFINITIONS } from "./tools";
+import type { AgentRun, AgentProgressEvent, AgentToolResult } from "./contracts";
+import { TOOL_DEFINITIONS, ToolRegistry } from "./tools";
+
+export interface AgentServiceOptions {
+  registryFactory?: (integration: CorsairIntegrationService) => ToolRegistry;
+  afterApproved?: (args: {
+    toolId: string;
+    toolArgs: Record<string, unknown>;
+    metadata: Record<string, unknown>;
+    result: AgentToolResult;
+  }) => Promise<void>;
+}
 
 export class AgentService {
-  constructor(private readonly tenantId: string) {}
+  constructor(
+    private readonly tenantId: string,
+    private readonly options: AgentServiceOptions = {},
+  ) {}
 
   async startRun(conversationId: string, command: string): Promise<AgentRun> {
     const supabase = await createClient();
@@ -27,7 +39,9 @@ export class AgentService {
 
     const groq = new GroqAdapter();
     const integration = new CorsairIntegrationService();
-    const registry = new ToolRegistry(integration);
+    const registry = this.options.registryFactory
+      ? this.options.registryFactory(integration)
+      : new ToolRegistry(integration);
 
     const events: AgentProgressEvent[] = [];
 
@@ -108,10 +122,18 @@ export class AgentService {
     ) {
       throw new Error("Run metadata does not contain a proposed action.");
     }
+    if (
+      typeof metadata.expiresAt === "string" &&
+      new Date(metadata.expiresAt).getTime() <= Date.now()
+    ) {
+      throw new Error("The approval proposal has expired.");
+    }
 
     const groq = new GroqAdapter();
     const integration = new CorsairIntegrationService();
-    const registry = new ToolRegistry(integration);
+    const registry = this.options.registryFactory
+      ? this.options.registryFactory(integration)
+      : new ToolRegistry(integration);
 
     const events: AgentProgressEvent[] = metadata.progressEvents
       ? (metadata.progressEvents as AgentProgressEvent[])
@@ -188,6 +210,14 @@ export class AgentService {
           })
           .eq("id", run.id);
       } else {
+        if (this.options.afterApproved) {
+          await this.options.afterApproved({
+            toolId: metadata.proposedAction as string,
+            toolArgs: JSON.parse(metadata.proposedArgs as string),
+            metadata,
+            result,
+          });
+        }
         await loop.verify(
           this.mapToAgentRun(run),
           {

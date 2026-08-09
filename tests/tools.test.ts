@@ -153,4 +153,52 @@ describe("ToolRegistry", () => {
     });
     expect(JSON.stringify(result)).not.toContain("provider details");
   });
+
+  it("executes the approved Gmail archive mapping without leaking provider details", async () => {
+    const integration = new MockIntegrationService();
+    integration.mockResponse("gmail", "api.threads.modify", {
+      content: "Success",
+      data: { id: "thread-1" },
+    });
+    const registry = new ToolRegistry(integration);
+
+    const result = await registry.execute(
+      {
+        id: "archive-1",
+        tenantId: "tenant-1",
+        toolId: "gmail.archive_thread",
+        operation: "write",
+        args: { id: "thread-1", removeLabelIds: ["INBOX"] },
+      },
+      true,
+    );
+
+    expect(result).toMatchObject({ ok: true, data: { id: "thread-1" } });
+    expect(integration.getCalls()[0].call).toMatchObject({
+      plugin: "gmail",
+      action: "api.threads.modify",
+      args: { id: "thread-1", removeLabelIds: ["INBOX"] },
+    });
+  });
+
+  it("runs local triage tools only through an injected server executor", async () => {
+    const integration = new MockIntegrationService();
+    const execute = vi.fn(async () => ({ content: "local success" }));
+    const registry = new ToolRegistry(integration, undefined, execute);
+
+    const result = await registry.execute(
+      {
+        id: "dismiss-1",
+        tenantId: "tenant-1",
+        toolId: "triage.dismiss",
+        operation: "write",
+        args: { triageItemId: "item-1" },
+      },
+      true,
+    );
+
+    expect(result).toMatchObject({ ok: true, content: "local success" });
+    expect(execute).toHaveBeenCalledWith("tenant-1", "triage.dismiss", { triageItemId: "item-1" });
+    expect(integration.getCalls()).toHaveLength(0);
+  });
 });

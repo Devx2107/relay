@@ -27,3 +27,26 @@ Groq is advisory and injectable. It is called only when deterministic urgency or
 If Groq is not configured, unavailable, rate-limited, malformed, oversized, or low-confidence, the deterministic candidate remains unchanged. Prompts treat source text as untrusted data, and no prompt, credential, raw provider error, or model reasoning is exposed to users.
 
 Triage actions such as reply, ignore/archive, and snooze remain separate workflows. Replies are drafted, editable, and approval-gated before sending.
+
+## Persistence and response contract
+
+TRI-003 persists ranked candidates in the authenticated user's `triage_items` rows. The existing unique key `(user_id, source, source_id)` makes repeated triage runs idempotent. Candidate display data is stored in `content` as safe JSONB containing the score, urgency, reason, signal values, summary, timestamps, sender/attendees, and supported action names. Raw Gmail/Calendar payloads, credentials, prompts, and model internals are not persisted.
+
+The server response contains `items`, `generatedAt`, and optional per-source status. It reads only `pending` rows owned by the authenticated user, validates stored content, sorts by score descending followed by recency and stable source ID, and returns no more than five items. A requested limit is clamped to the 2-5 range; if fewer valid items exist, the response returns fewer. TRI-005 and TRI-006 will own status transitions and action execution.
+
+## Proactive console briefing
+
+The authenticated console loads its briefing through the internal `GET /api/triage?limit=5` boundary. The endpoint uses `no-store` semantics, authenticates the Supabase session before integrations or persistence, retrieves both sources, ranks with the authenticated account as relevant-address context, upserts ranked candidates, and returns the TRI-003 response. Browser code never calls Corsair, Gmail, Calendar, Groq, or Supabase persistence directly.
+
+## TRI-005 actions
+
+Triage actions use the internal `/api/triage/actions` boundary. The server verifies the authenticated owner, pending item status, source, and supported action before creating a fifteen-minute `agent_runs` approval proposal. Provider writes execute only through the approved server-side tool registry.
+
+- Email `reply` creates a Gmail draft after approval; editable composition and sending remain TRI-006.
+- Email `ignore` archives the thread by removing the `INBOX` label, then dismisses the local item after a successful provider result.
+- Calendar `ignore` is a local dismissal and does not call Calendar.
+- `snooze` is local and accepts only `one_hour`, `tomorrow`, or `next_week`; the item becomes `snoozed` with a bounded reappearance timestamp.
+
+Approval rechecks ownership, pending status, proposal expiration, and the expected tool/item relationship. Repeated or stale proposals are rejected. Responses contain only safe action status and generic provider errors.
+
+Authentication failures return a safe `401` response. Unexpected orchestration or persistence failures return a safe retryable `503`; source-specific read failures remain represented in the response's per-source status while available items can still be shown. The console makes one briefing request per mount and does not poll or run background loops.

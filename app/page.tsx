@@ -1,8 +1,14 @@
-export default function Home() {
-  return (
-    <main>
-      <h1>Relay</h1>
-      <p>Engineering environment bootstrapped. Product work begins after architecture approval.</p>
-    </main>
-  );
+import { redirect } from "next/navigation";
+import { createClient } from "../lib/supabase/server";
+import CommandConsole from "./components/command-console";
+
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  return <CommandConsole email={user.email ?? ""} />;
 }

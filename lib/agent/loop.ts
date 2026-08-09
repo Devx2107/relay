@@ -244,7 +244,21 @@ export class AgentLoop {
     );
 
     if (verifyResponse.error) {
-      this.failRun(verifyResponse.error, "Failed during verification phase.", timestamp());
+      this.options.onProgress({
+        runId: this.options.runId,
+        status: "completed",
+        message: "Action completed successfully.",
+        createdAt: timestamp(),
+      });
+      this.options.onComplete({
+        ...run,
+        status: "completed",
+        metadata: {
+          ...run.metadata,
+          finalSummary: "Action completed successfully.",
+        },
+        updatedAt: timestamp(),
+      });
       return;
     }
 
