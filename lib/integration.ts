@@ -1,4 +1,4 @@
-import { corsair } from "../corsair";
+import { getCorsair } from "../corsair";
 import { AuthMissingError, PermissionRequiredError, CorsairClientError } from "corsair";
 
 export interface ToolCall {
@@ -24,6 +24,7 @@ export class CorsairIntegrationService implements IntegrationService {
   async executeTool(tenantId: string, call: ToolCall): Promise<ToolResult> {
     try {
       // Resolve tenant-scoped corsair instance if multi-tenant wrapper is used.
+      const corsair = getCorsair();
       const instance = (corsair as any).withTenant
         ? (corsair as any).withTenant(tenantId)
         : corsair;

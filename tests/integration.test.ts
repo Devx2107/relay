@@ -1,15 +1,19 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { MockIntegrationService } from "../lib/integration-mock";
 import { ToolCall, CorsairIntegrationService } from "../lib/integration";
-import { corsair } from "../corsair";
+
 import { AuthMissingError, PermissionRequiredError, CorsairClientError } from "corsair";
 
+const { mockpluginAction } = vi.hoisted(() => ({
+  mockpluginAction: vi.fn(),
+}));
+
 vi.mock("../corsair", () => ({
-  corsair: {
+  getCorsair: vi.fn().mockReturnValue({
     mockplugin: {
-      action: vi.fn(),
+      action: mockpluginAction,
     },
-  },
+  }),
 }));
 
 describe("IntegrationService boundary", () => {
@@ -57,7 +61,7 @@ describe("CorsairIntegrationService error mapping", () => {
   it("maps AuthMissingError to isAuthMissing", async () => {
     const service = new CorsairIntegrationService();
 
-    vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
+    mockpluginAction.mockRejectedValueOnce(
       new AuthMissingError("mockplugin", "oauth_2", "Missing connection"),
     );
 
@@ -76,9 +80,7 @@ describe("CorsairIntegrationService error mapping", () => {
   it("maps PermissionRequiredError to isPermissionRequired", async () => {
     const service = new CorsairIntegrationService();
 
-    vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
-      new PermissionRequiredError("Permission denied"),
-    );
+    mockpluginAction.mockRejectedValueOnce(new PermissionRequiredError("Permission denied"));
 
     const result = await service.executeTool("tenant-1", {
       plugin: "mockplugin",
@@ -93,7 +95,7 @@ describe("CorsairIntegrationService error mapping", () => {
   it("maps CorsairClientError 401 to isAuthMissing", async () => {
     const service = new CorsairIntegrationService();
 
-    vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
+    mockpluginAction.mockRejectedValueOnce(
       new CorsairClientError(401, "unauthorized", "Token expired"),
     );
 
@@ -110,7 +112,7 @@ describe("CorsairIntegrationService error mapping", () => {
   it("maps CorsairClientError 429 to isRateLimited", async () => {
     const service = new CorsairIntegrationService();
 
-    vi.mocked(corsair.mockplugin.action).mockRejectedValueOnce(
+    mockpluginAction.mockRejectedValueOnce(
       new CorsairClientError(429, "rate_limited", "Too many requests"),
     );
 

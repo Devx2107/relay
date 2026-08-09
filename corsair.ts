@@ -29,4 +29,5 @@ export function getCorsair() {
   return corsairInstance;
 }
 
-export const corsair = getCorsair();
+// The instance is intentionally not exported to avoid eager instantiation on module load.
+// Call getCorsair() lazily where the SDK is needed.
