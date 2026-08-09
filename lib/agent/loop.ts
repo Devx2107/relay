@@ -74,11 +74,29 @@ export class AgentLoop {
     let scheduleAvailabilityProcessed = false;
     let scheduleSlots: AvailableSlot[] | undefined;
 
-    const planResponse = await this.options.groq.complete(
-      messages,
-      "I need more context.",
-      readTools,
-    );
+    let planResponse;
+    try {
+      planResponse = await this.options.groq.complete(
+        messages,
+        "I need more context.",
+        readTools,
+        intent.kind === "schedule" && intent.parameters.attendeeStatus === "provided"
+          ? "calendar.check_availability"
+          : undefined,
+      );
+    } catch {
+      this.failRun(
+        {
+          code: "integration_unavailable",
+          message: "The language assistant could not plan this request.",
+          retryable: true,
+          action: "retry",
+        },
+        "Failed during planning phase.",
+        timestamp(),
+      );
+      return;
+    }
 
     if (planResponse.error) {
       this.failRun(planResponse.error, "Failed during planning phase.", timestamp());
@@ -96,7 +114,7 @@ export class AgentLoop {
           const args = JSON.parse(call.function.arguments);
           const toolDef = TOOL_DEFINITIONS.find((t) => t.id === call.function.name);
 
-          if (toolDef) {
+          if (toolDef && toolDef.operation === "read" && toolDef.availability === "available") {
             this.options.onProgress({
               runId: this.options.runId,
               status: "reading",
@@ -281,11 +299,26 @@ export class AgentLoop {
         "Based on the read data, propose the next action using write tools. If no write action is needed, provide a final summary.",
     });
 
-    const proposeResponse = await this.options.groq.complete(
-      messages,
-      "I cannot propose an action at this time.",
-      writeTools,
-    );
+    let proposeResponse;
+    try {
+      proposeResponse = await this.options.groq.complete(
+        messages,
+        "I cannot propose an action at this time.",
+        writeTools,
+      );
+    } catch {
+      this.failRun(
+        {
+          code: "integration_unavailable",
+          message: "The language assistant could not prepare the next action.",
+          retryable: true,
+          action: "retry",
+        },
+        "Failed during propose phase.",
+        timestamp(),
+      );
+      return;
+    }
 
     if (proposeResponse.error) {
       this.failRun(proposeResponse.error, "Failed during propose phase.", timestamp());
@@ -431,6 +464,18 @@ export class AgentLoop {
   }
 
   private toGroqTool(def: ToolDefinition): GroqTool {
+    const optional = new Set(["maxResults", "singleEvents", "orderBy", "format"]);
+    const typeByName: Record<string, Record<string, unknown>> = {
+      maxResults: { type: "integer", minimum: 1, maximum: 100 },
+      singleEvents: { type: "boolean" },
+      items: {
+        type: "array",
+        items: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+      },
+      attendees: { type: "array", items: { type: "string" } },
+      changes: { type: "object" },
+    };
+
     return {
       type: "function",
       function: {
@@ -440,12 +485,12 @@ export class AgentLoop {
           type: "object",
           properties: def.argumentNames.reduce(
             (acc, name) => {
-              acc[name] = { type: "string" };
+              acc[name] = typeByName[name] ?? { type: "string" };
               return acc;
             },
             {} as Record<string, unknown>,
           ),
-          required: [...def.argumentNames],
+          required: def.argumentNames.filter((name) => !optional.has(name)),
         },
       },
     };

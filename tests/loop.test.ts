@@ -41,7 +41,9 @@ describe("AgentLoop", () => {
     const onComplete = vi.fn();
 
     let callCount = 0;
-    const groqComplete = vi.fn().mockImplementation((messages) => {
+    const plannerTools: any[][] = [];
+    const groqComplete = vi.fn().mockImplementation((messages, _fallback, tools) => {
+      plannerTools.push(tools ?? []);
       callCount++;
       const hasHistory = messages.some((m: any) => m.content === "hello");
       if (!hasHistory) throw new Error("History missing from messages");
@@ -108,6 +110,11 @@ describe("AgentLoop", () => {
         plugin: "gmail",
       }),
     );
+    const availabilityTool = plannerTools[0].find(
+      (tool) => tool.function.name === "calendar.check_availability",
+    );
+    expect(availabilityTool.function.parameters.properties.items.type).toBe("array");
+    expect(availabilityTool.function.parameters.required).toEqual(["timeMin", "timeMax", "items"]);
 
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -115,6 +122,58 @@ describe("AgentLoop", () => {
         metadata: expect.objectContaining({
           proposedAction: "gmail.send",
         }),
+      }),
+    );
+  });
+
+  it("does not execute a write tool returned during planning", async () => {
+    const onComplete = vi.fn();
+    const complete = vi
+      .fn()
+      .mockResolvedValueOnce({
+        toolCalls: [
+          {
+            id: "write-in-read-phase",
+            type: "function",
+            function: { name: "gmail.send", arguments: "{}" },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ text: "No action is needed." });
+    const integration = { executeTool: vi.fn() } as unknown as IntegrationService;
+
+    await new AgentLoop({
+      runId: "run-read-boundary",
+      tenantId: "tenant-1",
+      conversationId: "conv-1",
+      groq: { complete } as unknown as GroqAdapter,
+      registry: new ToolRegistry(integration),
+      onProgress: vi.fn(),
+      onComplete,
+    }).execute("show my unread emails");
+
+    expect(integration.executeTool).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ status: "completed" }));
+  });
+
+  it("turns an unexpected planning exception into a retryable failed run", async () => {
+    const onComplete = vi.fn();
+    const complete = vi.fn().mockRejectedValue(new Error("provider exploded"));
+
+    await new AgentLoop({
+      runId: "run-planner-error",
+      tenantId: "tenant-1",
+      conversationId: "conv-1",
+      groq: { complete } as unknown as GroqAdapter,
+      registry: new ToolRegistry({} as IntegrationService),
+      onProgress: vi.fn(),
+      onComplete,
+    }).execute("show my unread emails");
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        error: expect.objectContaining({ code: "integration_unavailable", action: "retry" }),
       }),
     );
   });

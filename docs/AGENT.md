@@ -32,6 +32,8 @@ SCH-003 keeps availability ranking deterministic after the `calendar.check_avail
 
 Groq may classify or summarize ambiguous content, but it cannot execute tools, authorize writes, or replace deterministic policy checks.
 
+The loop publishes tool schemas with the actual argument shapes used by the integration boundary, including optional fields, arrays, booleans, and bounded integers. During planning it accepts only available read tools; write proposals are handled only in the later approval path. Unexpected planner exceptions become bounded retryable run failures.
+
 ## Tool registry
 
 `lib/agent/tools.ts` is the server-side allowlist between agent decisions and `IntegrationService`. Callers submit a logical tool ID and operation; the registry supplies the verified plugin/action mapping and rejects unknown tools or operation mismatches. Current Gmail and Calendar reads are executable through the injected integration service with tenant scope preserved. Write tools are classified by the registry, but execution returns `approval_required` until AGT-006 provides persisted server-side approval. Planned tools have no guessed external action path and return an unavailable error.

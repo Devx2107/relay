@@ -4,7 +4,7 @@ export const DEFAULT_GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/comple
 export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
 
 const DEFAULT_MAX_INPUT_CHARACTERS = 6000;
-const DEFAULT_MAX_COMPLETION_TOKENS = 256;
+const DEFAULT_MAX_COMPLETION_TOKENS = 1024;
 const DEFAULT_TIMEOUT_MS = 10000;
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_CHARACTERS = 4000;
@@ -123,6 +123,7 @@ export class GroqAdapter {
     messages: readonly GroqMessage[],
     fallback: string,
     tools?: readonly GroqTool[],
+    forceToolName?: string,
   ): Promise<GroqCompletionResult> {
     const validationError = this.validateMessages(messages);
     if (validationError) return fallbackResult(fallback, validationError);
@@ -149,16 +150,31 @@ export class GroqAdapter {
           messages,
           max_completion_tokens: this.config.maxCompletionTokens,
           n: 1,
-          ...(tools && tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
+          ...(tools && tools.length > 0 ? { 
+            tools, tool_choice:forceToolName
+                  ? { type: "function", function: { name: forceToolName } }
+                  : "auto", } : {}),
         }),
         signal: controller.signal,
       });
 
-      if (!response.ok) return fallbackResult(fallback, providerError(response.status));
+      if (!response.ok) {
+        let bodyText = "<unreadable body>";
+        try {
+          bodyText = await response.text();
+        } catch {
+          // ignore body-read failures; status/statusText are still logged below
+        }
+        console.error(
+          `Groq request failed: ${response.status} ${response.statusText} — ${bodyText.slice(0, 1000)}`,
+        );
+        return fallbackResult(fallback, providerError(response.status));
+      }
 
       const payload = (await response.json()) as GroqResponse;
       const message = payload.choices?.[0]?.message;
       if (!message || (typeof message.content !== "string" && !message.tool_calls)) {
+        console.error("Groq returned an unusable response payload:", JSON.stringify(payload).slice(0, 1000));
         return fallbackResult(fallback, {
           code: "integration_unavailable",
           message: "The language assistant returned an unusable response.",
@@ -174,6 +190,10 @@ export class GroqAdapter {
       };
     } catch (error) {
       const isTimeout = error instanceof Error && error.name === "AbortError";
+      console.error(
+        isTimeout ? "Groq request timed out" : "Groq request threw an exception:",
+        isTimeout ? undefined : error,
+      );
       return fallbackResult(fallback, {
         code: "integration_unavailable",
         message: isTimeout

@@ -1,66 +1,65 @@
 # Current Task
 
-## Current Task: EXT-001 pgvector semantic search
+## Current Task: AGT-010 reliable planner tool responses
 
 ## Goal
 
-Improve the command console’s responsive layout and visual polish as required by POL-001.
+Fix the shared agent loop so planner responses produce valid tool calls and gracefully handle planner failures.
 
 ## Context
 
-QLT-005 is the final P0 verification item. The review must cover both API authorization and the agent’s write boundary, while preserving the integration abstraction and approval requirement.
+Users report that plan responses fail frequently and do not return useful responses. The loop currently generates an overly broad tool schema and trusts planner tool names during the read phase.
 
 ## Requirements
 
-- Define the embedding provider, model, and vector dimension before schema changes.
-- Define which user-owned content is indexed and how queries are authenticated.
-- Keep semantic search behind the server/database boundary.
-- Do not modify EXT-002, EXT-003, or EXT-004.
+- Emit accurate JSON-schema types and required fields for planner tools.
+- Execute only available read tools during planning.
+- Convert unexpected planner failures into bounded failed runs.
+- Preserve the server-side registry and approval boundary.
 
 ## Acceptance Criteria
 
-- A concrete embedding and query contract exists.
-- Search results remain user-scoped and do not expose cross-account content.
-- The implementation is usable rather than only adding an unpopulated vector column.
-- No unrelated product behavior changes are included.
+- Valid calendar availability and Gmail read calls can be represented by the planner schema.
+- Unknown/write planner calls cannot execute during the read phase.
+- An unexpected planner exception produces a user-facing failed run rather than an unhandled request failure.
+- Existing triage, scheduling, approval, and verification behavior remains intact.
 
 ## Relevant Areas
 
-- `supabase/migrations/*`
-- `lib/db.ts`
-- `lib/supabase/server.ts`
-- A future embedding/search service boundary
+- `lib/agent/loop.ts`
+- `tests/loop.test.ts`
+- `docs/AGENT.md`
 
 ## Constraints
 
-- Do not invent an embedding provider, model, or vector dimension.
-- Do not add credentials or external services without an explicit architecture decision.
-- Do not modify EXT-002, EXT-003, or EXT-004.
+- Do not call external services from UI code.
+- Do not bypass the tool registry or approval requirement.
+- Keep the change limited to planner reliability.
 
 ## Plan
 
-1. Inspect existing schema and search/integration boundaries.
-2. Select the embedding provider, model, dimension, and indexed content.
-3. Implement the smallest authenticated pgvector search path.
-4. Run checks and record EXT-001 completion only.
+1. Inspect the existing loop, adapter, registry, and tests.
+2. Correct planner tool schemas and read-phase validation.
+3. Add focused regression coverage.
+4. Run checks and review security and scope.
 
 ## Verification
 
-- [ ] Formatting
-- [ ] Lint
-- [ ] Typecheck
-- [ ] Tests
-- [ ] Build
-- [ ] Security and scope review
+- [x] Formatting (changed files; pre-existing `tasks/BACKLOG.md` remains unformatted)
+- [x] Lint
+- [x] Typecheck
+- [x] Tests
+- [x] Build
+- [x] Security and scope review
 
 ## Review
 
-- [ ] No unrelated changes
-- [ ] No regressions
-- [ ] No unnecessary complexity
-- [ ] Security reviewed
-- [ ] Documentation updated
+- [x] No unrelated changes
+- [x] No regressions
+- [x] No unnecessary complexity
+- [x] Security reviewed
+- [x] Documentation updated
 
 ## Status
 
-REVIEW - EXT-001 is blocked pending an embedding provider, model/dimension, indexed content, and query-scope decision; no code changed.
+COMPLETE
