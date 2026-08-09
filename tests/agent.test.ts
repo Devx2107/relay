@@ -216,6 +216,20 @@ describe("agent contracts", () => {
     });
   });
 
+  it("allows optional agenda email language in scheduling commands", () => {
+    expect(
+      parseCommand("Schedule a meeting with rahul@example.com next week and send him the agenda"),
+    ).toMatchObject({
+      ok: true,
+      intent: {
+        kind: "schedule",
+        parameters: {
+          attendees: ["rahul@example.com"],
+        },
+      },
+    });
+  });
+
   it("marks display names unresolved without inventing email addresses", () => {
     expect(parseCommand("Schedule a meeting with Alice and Bob tomorrow")).toMatchObject({
       ok: true,

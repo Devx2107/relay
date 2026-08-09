@@ -74,7 +74,6 @@ export const TOOL_DEFINITIONS = [
   {
     id: "gmail.reply_draft",
     plugin: "gmail",
-    action: "api.drafts.create",
     operation: "write",
     availability: "available",
     description: "Create an email reply draft.",
@@ -83,7 +82,6 @@ export const TOOL_DEFINITIONS = [
   {
     id: "gmail.send",
     plugin: "gmail",
-    action: "api.messages.send",
     operation: "write",
     availability: "available",
     description: "Send an email.",

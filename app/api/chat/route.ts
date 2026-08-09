@@ -5,6 +5,19 @@ import { isValidTimeZone } from "../../../lib/agent/contracts";
 
 export const dynamic = "force-dynamic";
 
+function internalErrorResponse() {
+  return NextResponse.json(
+    {
+      error: {
+        code: "internal_error",
+        message: "Internal server error",
+        retryable: true,
+      },
+    },
+    { status: 500 },
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -28,6 +41,19 @@ export async function POST(request: Request) {
 
     let conversationId = reqConversationId;
 
+    if (conversationId) {
+      const { data: conversation, error: conversationError } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (conversationError || !conversation) {
+        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      }
+    }
+
     if (!conversationId) {
       // Ensure user exists in public.users before inserting conversation, bypassing RLS
       if (user.email) {
@@ -50,10 +76,7 @@ export async function POST(request: Request) {
 
       if (convError || !conversation) {
         console.error("Conversation insert error:", convError);
-        return NextResponse.json(
-          { error: "Failed to create conversation", details: convError },
-          { status: 500 },
-        );
+        return internalErrorResponse();
       }
       conversationId = conversation.id;
     }
@@ -66,7 +89,8 @@ export async function POST(request: Request) {
     });
 
     if (msgError) {
-      return NextResponse.json({ error: "Failed to save message" }, { status: 500 });
+      console.error("Message insert error:", msgError);
+      return internalErrorResponse();
     }
 
     // Start agent run.
@@ -74,11 +98,8 @@ export async function POST(request: Request) {
     const run = await agentService.startRun(conversationId, command, { accountTimeZone: timeZone });
 
     return NextResponse.json({ conversationId, run });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Chat API error:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error", stack: error.stack },
-      { status: 500 },
-    );
+    return internalErrorResponse();
   }
 }

@@ -1,58 +1,59 @@
 # Current Task
 
-## Current Task: Test audit and approval-edge bug fixes
+## Current Task: Route approved Gmail replies through RFC2822 construction
 
 ## Goal
 
-Make the test suite truthful and strengthen coverage around scheduling approval, execution, verification, and partial failures.
+Ensure approved triage replies and reply drafts use the existing RFC2822 MIME construction before reaching Gmail.
 
 ## Context
 
-The non-live suite passes, but `tests/rls.test.ts` currently runs whenever `DATABASE_URL` exists, including placeholder values used for local verification. That makes `npm test` fail with a DNS error instead of clearly skipping an integration-only suite. SCH-005/SCH-006 also need explicit regression coverage for stale, malformed, and duplicate approval paths.
+`GmailService` already constructs correctly threaded RFC2822 payloads, but the tool definitions currently route `gmail.send` and `gmail.reply_draft` directly to Corsair. Approved triage actions provide only `{ threadId, body }`, so the RFC2822 methods are never used.
 
 ## Requirements
 
-- Make live RLS tests opt-in and skip cleanly during normal local/CI unit runs.
-- Preserve a clear command for intentionally running RLS tests against a configured database.
-- Add focused approval edge-case tests without changing product scope.
-- Do not weaken application authorization or approval enforcement to make tests pass.
+- Route `gmail.send` and `gmail.reply_draft` through the server-side local executor.
+- Reuse `GmailService.sendReply()` and `createReplyDraft()` for raw MIME/threading construction.
+- Keep `gmail.archive_thread` on its existing direct integration mapping.
+- Add regression coverage at the registry integration boundary.
 
 ## Acceptance Criteria
 
-- `npm test` passes without requiring a live database when `RUN_RLS_TESTS` is not explicitly enabled.
-- RLS tests still run when explicitly opted in with valid database configuration.
-- Scheduling tests cover expired, malformed, duplicate/claimed, event-verification, and partial-email failure behavior.
-- Lint, typecheck, formatting, non-live tests, and build pass.
+- Approved send and draft calls fetch the source thread before invoking Gmail send/draft.
+- The outgoing call contains the RFC2822 `raw` payload and threading headers.
+- Lint, typecheck, formatting, tests, and build pass.
+- Lint, typecheck, formatting, tests, and build pass.
 - No unrelated product behavior changes are included.
 
 ## Relevant Areas
 
-- `tests/rls.test.ts`
-- `tests/service.test.ts`
-- `tests/scheduling-execution.test.ts`
+- `lib/gmail.ts`
+- `lib/agent/tools.ts`
 - `lib/agent/service.ts`
-- `tasks/BACKLOG.md`
-- `docs/DEVELOPMENT.md`
+- `tests/gmail.test.ts`
+- `tests/service.test.ts`
 
 ## Constraints
 
-- Live RLS coverage must remain available and must not be silently converted into unit tests.
 - Keep provider calls mocked in normal tests.
 - Preserve the server-side approval boundary.
+- Do not modify scheduling execution behavior.
+- Keep the verified scheduling proposal path unchanged.
+- Keep provider calls server-side and approval-gated.
 
 ## Plan
 
-1. Inspect the failing RLS harness and approval edge paths.
-2. Add explicit RLS opt-in and documentation.
-3. Add or fix focused regression tests for scheduling approvals.
-4. Run the full non-live suite, opt-in-independent checks, lint, typecheck, and build.
+1. Inspect Gmail construction and registry wiring.
+2. Make reply tools use the injected local executor.
+3. Add focused RFC2822 execution coverage.
+4. Run targeted and full checks and review security/scope.
 
 ## Verification
 
 - [x] Formatting (targeted task files)
 - [x] Lint
 - [x] Typecheck
-- [x] Tests (99 passed, 3 live RLS tests skipped without opt-in)
+- [x] Tests (106 passed, 3 live RLS tests skipped without opt-in)
 - [x] Build
 - [x] Security and scope review
 
@@ -66,4 +67,4 @@ The non-live suite passes, but `tests/rls.test.ts` currently runs whenever `DATA
 
 ## Status
 
-REVIEW - Test audit and approval-edge fixes are complete and awaiting review.
+REVIEW - Approved Gmail replies now use RFC2822 construction and are awaiting review.

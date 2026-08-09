@@ -107,6 +107,36 @@ describe("AgentService", () => {
     await expect(service.approveRun("123")).rejects.toThrow(/not waiting for approval/);
   });
 
+  it("does not execute a non-scheduling action when another approval claims the run first", async () => {
+    const { ToolRegistry } = await import("../lib/agent/tools");
+    const execute = vi.fn();
+    (ToolRegistry as any).mockImplementationOnce(() => ({ execute }));
+
+    const mockSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          id: "claimed-triage-run",
+          status: "waiting_for_approval",
+          metadata: { proposedAction: "test", proposedArgs: "{}" },
+        },
+      })
+      .mockResolvedValueOnce({ data: null, error: null });
+    const queryBuilder: any = {};
+    const mockUpdate = vi.fn(() => queryBuilder);
+    queryBuilder.select = vi.fn(() => queryBuilder);
+    queryBuilder.eq = vi.fn(() => queryBuilder);
+    queryBuilder.single = mockSingle;
+    queryBuilder.update = mockUpdate;
+    mockSupabase.from.mockReturnValue(queryBuilder);
+
+    await expect(new AgentService("tenant-1").approveRun("claimed-triage-run")).rejects.toThrow(
+      /no longer waiting/,
+    );
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "executing" }));
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("handles registry execution failure in approveRun", async () => {
     // Reset registry mock for this test
     const { ToolRegistry } = await import("../lib/agent/tools");

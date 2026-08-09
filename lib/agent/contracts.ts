@@ -1,6 +1,8 @@
 export type JsonPrimitive =
   string | number | boolean | null | { [key: string]: JsonPrimitive } | JsonPrimitive[];
-export type SafeMetadata = Record<string, JsonPrimitive | any>;
+// Metadata is validated at the runtime boundary by safeMetadata(); callers must
+// narrow values before using them as structured data.
+export type SafeMetadata = Record<string, unknown>;
 
 export type AgentRunStatus =
   | "queued"

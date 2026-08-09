@@ -2,6 +2,7 @@ import { createClient } from "../supabase/server";
 import { AgentLoop } from "./loop";
 import { GroqAdapter } from "./groq";
 import { CorsairIntegrationService } from "../integration";
+import { GmailService } from "../gmail";
 import type { AgentRun, AgentProgressEvent, AgentToolResult } from "./contracts";
 import { TOOL_DEFINITIONS, ToolRegistry } from "./tools";
 import { isValidTimeZone } from "./contracts";
@@ -49,9 +50,18 @@ export class AgentService {
 
     const groq = new GroqAdapter();
     const integration = new CorsairIntegrationService();
+    const gmail = new GmailService(integration);
     const registry = this.options.registryFactory
       ? this.options.registryFactory(integration)
       : new ToolRegistry(integration, undefined, async (tenantId, toolId, args) => {
+          if (toolId === "gmail.send" || toolId === "gmail.reply_draft") {
+            if (typeof args.threadId !== "string" || typeof args.body !== "string") {
+              throw new Error("Invalid Gmail reply arguments.");
+            }
+            return toolId === "gmail.send"
+              ? gmail.sendReply(tenantId, args.threadId, args.body)
+              : gmail.createReplyDraft(tenantId, args.threadId, args.body);
+          }
           const sb = await createClient();
           if (toolId === "triage.dismiss") {
             const { error } = await sb
@@ -180,9 +190,18 @@ export class AgentService {
 
     const groq = new GroqAdapter();
     const integration = new CorsairIntegrationService();
+    const gmail = new GmailService(integration);
     const registry = this.options.registryFactory
       ? this.options.registryFactory(integration)
       : new ToolRegistry(integration, undefined, async (tenantId, toolId, args) => {
+          if (toolId === "gmail.send" || toolId === "gmail.reply_draft") {
+            if (typeof args.threadId !== "string" || typeof args.body !== "string") {
+              throw new Error("Invalid Gmail reply arguments.");
+            }
+            return toolId === "gmail.send"
+              ? gmail.sendReply(tenantId, args.threadId, args.body)
+              : gmail.createReplyDraft(tenantId, args.threadId, args.body);
+          }
           const sb = await createClient();
           if (toolId === "triage.dismiss") {
             const { error } = await sb
@@ -260,26 +279,32 @@ export class AgentService {
       },
     });
 
-    try {
-      const toolDef = TOOL_DEFINITIONS.find((t) => t.id === metadata.proposedAction);
-      const actionMessage = toolDef ? toolDef.description : "Executing action...";
+    const toolDef = TOOL_DEFINITIONS.find((t) => t.id === metadata.proposedAction);
+    const actionMessage = toolDef ? toolDef.description : "Executing action...";
+    events.push({
+      runId: run.id,
+      status: "executing",
+      message: actionMessage,
+      createdAt: new Date().toISOString(),
+    });
 
-      events.push({
-        runId: run.id,
+    const { data: claimedRun, error: claimError } = await supabase
+      .from("agent_runs")
+      .update({
         status: "executing",
-        message: actionMessage,
-        createdAt: new Date().toISOString(),
-      });
+        metadata: { ...metadata, progressEvents: events },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", run.id)
+      .eq("status", "waiting_for_approval")
+      .select()
+      .single();
 
-      await supabase
-        .from("agent_runs")
-        .update({
-          status: "executing",
-          metadata: { ...metadata, progressEvents: events },
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", run.id);
+    if (claimError || !claimedRun) {
+      throw new Error("Run is no longer waiting for approval.");
+    }
 
+    try {
       const result = await registry.execute(
         {
           id: "approved-call",

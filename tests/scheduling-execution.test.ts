@@ -48,7 +48,17 @@ function makeRegistry() {
     content: "Sent",
     data: { id: "message-1" },
   });
-  return { integration, registry: new ToolRegistry(integration) };
+  return {
+    integration,
+    registry: new ToolRegistry(integration, undefined, async (tenantId, toolId, args) => {
+      if (toolId !== "gmail.send") throw new Error(`Unexpected local tool: ${toolId}`);
+      return integration.executeTool(tenantId, {
+        plugin: "gmail",
+        action: "api.messages.send",
+        args,
+      });
+    }),
+  };
 }
 
 describe("scheduling execution", () => {

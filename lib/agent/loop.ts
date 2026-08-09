@@ -250,6 +250,20 @@ export class AgentLoop {
       return;
     }
 
+    if (intent.kind === "schedule" && !scheduleAvailabilityProcessed) {
+      this.failRun(
+        {
+          code: "integration_unavailable",
+          message: "Verified calendar availability could not be confirmed.",
+          retryable: true,
+          action: "retry",
+        },
+        "Availability verification is required before scheduling.",
+        timestamp(),
+      );
+      return;
+    }
+
     this.options.onProgress({
       runId: this.options.runId,
       status: "planning",

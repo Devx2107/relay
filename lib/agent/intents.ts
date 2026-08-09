@@ -152,11 +152,12 @@ export function parseCommand(
   if (command.length > MAX_COMMAND_LENGTH) {
     return invalidRequest(`Keep requests under ${MAX_COMMAND_LENGTH} characters.`);
   }
-  if (isUnsupportedAction(command)) {
+
+  const schedule = isScheduleCommand(command);
+  if (!schedule && isUnsupportedAction(command)) {
     return invalidRequest("That action is not supported yet. Try asking for triage or scheduling.");
   }
 
-  const schedule = isScheduleCommand(command);
   const triage = isTriageCommand(command, schedule);
   if (schedule && triage) {
     return invalidRequest("Please ask for triage or scheduling in one request, not both.");

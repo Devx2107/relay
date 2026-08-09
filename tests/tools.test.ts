@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { GmailService } from "../lib/gmail";
 import { MockIntegrationService } from "../lib/integration-mock";
 import { ToolRegistry, ToolRegistryError, type ToolDefinition } from "../lib/agent/tools";
 
@@ -200,5 +201,55 @@ describe("ToolRegistry", () => {
     expect(result).toMatchObject({ ok: true, content: "local success" });
     expect(execute).toHaveBeenCalledWith("tenant-1", "triage.dismiss", { triageItemId: "item-1" });
     expect(integration.getCalls()).toHaveLength(0);
+  });
+
+  it("routes approved Gmail replies through the local RFC2822 executor", async () => {
+    const integration = new MockIntegrationService();
+    integration.mockResponse("gmail", "api.threads.get", {
+      content: "Success",
+      data: {
+        messages: [
+          {
+            payload: {
+              headers: [
+                { name: "From", value: "Sender <sender@test.com>" },
+                { name: "Subject", value: "Question" },
+                { name: "Message-ID", value: "<message@test.com>" },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    integration.mockResponse("gmail", "api.messages.send", {
+      content: "Success",
+      data: { id: "sent-1" },
+    });
+    const gmail = new GmailService(integration);
+    const registry = new ToolRegistry(integration, undefined, (tenantId, toolId, args) => {
+      if (toolId !== "gmail.send") throw new Error("unexpected local tool");
+      return gmail.sendReply(tenantId, args.threadId as string, args.body as string);
+    });
+
+    const result = await registry.execute(
+      {
+        id: "reply-1",
+        tenantId: "tenant-1",
+        toolId: "gmail.send",
+        operation: "write",
+        args: { threadId: "thread-1", body: "Thanks for the details." },
+      },
+      true,
+    );
+
+    expect(result).toMatchObject({ ok: true, data: { id: "sent-1" } });
+    const calls = integration.getCalls();
+    expect(calls).toHaveLength(2);
+    expect(calls[1].call.action).toBe("api.messages.send");
+    const rawEmail = Buffer.from((calls[1].call.args as any).raw, "base64url").toString("utf-8");
+    expect(rawEmail).toContain("To: Sender <sender@test.com>");
+    expect(rawEmail).toContain("Subject: Re: Question");
+    expect(rawEmail).toContain("In-Reply-To: <message@test.com>");
+    expect(rawEmail).toContain("Thanks for the details.");
   });
 });

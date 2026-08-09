@@ -119,6 +119,52 @@ describe("AgentLoop", () => {
     );
   });
 
+  it("fails closed when a schedule intent receives no availability check", async () => {
+    const onProgress = vi.fn();
+    const onComplete = vi.fn();
+    const groqComplete = vi.fn().mockResolvedValue({
+      text: "I have enough context to schedule this.",
+      usedFallback: false,
+    });
+    const groq = { complete: groqComplete } as unknown as GroqAdapter;
+    const integration = {
+      executeTool: vi.fn(),
+    } as unknown as IntegrationService;
+    const registry = new ToolRegistry(integration);
+
+    const loop = new AgentLoop({
+      runId: "schedule-run-unverified",
+      tenantId: "tenant-1",
+      conversationId: "conv-1",
+      groq,
+      registry,
+      onProgress,
+      onComplete,
+    });
+
+    await loop.execute("Schedule a meeting with rahul@example.com next week", []);
+
+    expect(groqComplete).toHaveBeenCalledTimes(1);
+    expect(integration.executeTool).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        error: {
+          code: "integration_unavailable",
+          message: "Verified calendar availability could not be confirmed.",
+          retryable: true,
+          action: "retry",
+        },
+      }),
+    );
+    expect(onComplete).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "waiting_for_approval",
+        metadata: expect.objectContaining({ proposedAction: "calendar.create_event" }),
+      }),
+    );
+  });
+
   it("verifies executed write action and summarizes", async () => {
     const onProgress = vi.fn();
     const onComplete = vi.fn();

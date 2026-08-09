@@ -1,6 +1,7 @@
 import { createClient } from "./supabase/server";
 import { AgentService } from "./agent/service";
 import { ToolRegistry } from "./agent/tools";
+import { GmailService } from "./gmail";
 import type { TriageItemStatus } from "./triage-items";
 
 export type TriageAction = "reply" | "ignore" | "snooze";
@@ -319,8 +320,18 @@ export class TriageActionService {
     }
 
     const service = new AgentService(user.id, {
-      registryFactory: (integration) =>
-        new ToolRegistry(integration, undefined, async () => ({ content: "Success" })),
+      registryFactory: (integration) => {
+        const gmail = new GmailService(integration);
+        return new ToolRegistry(integration, undefined, async (tenantId, toolId, args) => {
+          if (toolId === "gmail.send") {
+            if (typeof args.threadId !== "string" || typeof args.body !== "string") {
+              throw new Error("Invalid Gmail reply arguments.");
+            }
+            return gmail.sendReply(tenantId, args.threadId, args.body);
+          }
+          return { content: "Success" };
+        });
+      },
       afterApproved: async ({ toolId, toolArgs, metadata, result }) => {
         await this.applyCompletedState(supabase, user.id, toolId, toolArgs, metadata, result);
       },
