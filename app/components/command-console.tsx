@@ -85,11 +85,11 @@ interface CalendarEventCandidate {
   id: string;
   calendarId: string;
   topic: string;
-  start: string;
-  end: string;
-  location: string;
+  start?: string;
+  end?: string;
   attendees: string[];
-  description: string;
+  location?: string;
+  description?: string;
 }
 
 type MutationState = { runId: string; action: "approve" | "cancel" | "edit" | "select" } | null;
@@ -112,11 +112,33 @@ function urgencyLabel(urgency: BriefingItem["content"]["urgency"]): string {
 
 function formatScheduleTime(value: string, timeZone: string): string {
   try {
+    const minute = new Intl.DateTimeFormat(undefined, { timeZone, minute: "numeric" }).format(
+      new Date(value),
+    );
     return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      hour12: true,
+      ...(minute !== "0" ? { minute: "2-digit" } : {}),
       timeZone,
     }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function formatCalendarEventTime(value: string): string {
+  try {
+    const date = new Date(value);
+    const minute = new Intl.DateTimeFormat(undefined, { minute: "numeric" }).format(date);
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      ...(minute !== "0"
+        ? { hour: "numeric", minute: "2-digit", hour12: true }
+        : { hour: "numeric", hour12: true }),
+    }).format(date);
   } catch {
     return value;
   }
@@ -394,8 +416,8 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
       )}
 
       {/* Tab to open briefing */}
-      <button 
-        className="briefing-tab" 
+      <button
+        className="briefing-tab"
         onClick={() => setIsBriefingOpen(true)}
         aria-label="Open daily briefing"
         aria-expanded={isBriefingOpen}
@@ -403,13 +425,25 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
         Daily Brief
       </button>
 
-      <section className={`briefing-drawer ${isBriefingOpen ? "open" : ""}`} aria-labelledby="briefing-title">
-        <button 
-          className="briefing-close-btn" 
+      <section
+        className={`briefing-drawer ${isBriefingOpen ? "open" : ""}`}
+        aria-labelledby="briefing-title"
+      >
+        <button
+          className="briefing-close-btn"
           onClick={() => setIsBriefingOpen(false)}
           aria-label="Close daily briefing"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -417,9 +451,9 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
         <div className="briefing-drawer-scroll-area">
           <div className="eyebrow">Daily briefing</div>
           <h1 id="briefing-title">A clearer place to start</h1>
-        <p className="panel-intro">
-          A short list of the email and calendar items most worth your attention.
-        </p>
+          <p className="panel-intro">
+            A short list of the email and calendar items most worth your attention.
+          </p>
 
           {briefingState === "loading" && (
             <div
@@ -503,64 +537,81 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
             </div>
           )}
         </div>
-        </section>
+      </section>
 
-        <aside className="context-panel centered-context" aria-labelledby="context-title">
-          <div className="eyebrow">Workspace</div>
-          <h2 id="context-title">A single place to think clearly.</h2>
+      <aside className="context-panel centered-context" aria-labelledby="context-title">
+        <div className="eyebrow">Workspace</div>
+        <h2 id="context-title">A single place to think clearly.</h2>
 
-          {conversationItems.length > 0 ? (
-            <div className="conversation-history">
-              {historyLoading && <div className="history-status">Loading conversation…</div>}
-              {historyError && (
-                <div className="history-status" role="alert">
-                  {historyError}
-                  {sessionExpired ? (
-                    <a href="/login">Sign in again</a>
-                  ) : (
-                    <button
-                      type="button"
-                      className="inline-retry-btn"
-                      onClick={() => {
-                        hasLoadedHistory.current = false;
-                        setHistoryRetryKey((value) => value + 1);
-                      }}
-                    >
-                      Retry history
-                    </button>
-                  )}
-                </div>
-              )}
-              {conversationItems.map((item) => {
-                if ("role" in item) {
-                  return (
-                    <div
-                      key={item.id}
-                      className={`message-bubble message-${item.role} markdown-body`}
-                    >
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.content}</ReactMarkdown>
+        {conversationItems.length > 0 ? (
+          <div className="conversation-history">
+            {historyLoading && <div className="history-status">Loading conversation…</div>}
+            {historyError && (
+              <div className="history-status" role="alert">
+                {historyError}
+                {sessionExpired ? (
+                  <a href="/login">Sign in again</a>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-retry-btn"
+                    onClick={() => {
+                      hasLoadedHistory.current = false;
+                      setHistoryRetryKey((value) => value + 1);
+                    }}
+                  >
+                    Retry history
+                  </button>
+                )}
+              </div>
+            )}
+            {conversationItems.map((item) => {
+              if ("role" in item) {
+                return (
+                  <div
+                    key={item.id}
+                    className={`message-bubble message-${item.role} markdown-body`}
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.content}</ReactMarkdown>
+                  </div>
+                );
+              } else {
+                return (
+                  <div key={item.id} className="run-card">
+                    <div className={`run-status run-status-${item.status}`}>
+                      <span className="status-indicator" aria-hidden="true"></span>
+                      Agent is {item.status.replace(/_/g, " ")}
                     </div>
-                  );
-                } else {
-                  return (
-                    <div key={item.id} className="run-card">
-                      <div className={`run-status run-status-${item.status}`}>
-                        <span className="status-indicator" aria-hidden="true"></span>
-                        Agent is {item.status.replace(/_/g, " ")}
-                      </div>
 
-                      {item.metadata?.progressEvents && item.metadata.progressEvents.length > 0 && (
-                        <ul className="progress-list">
-                          {(item.metadata?.progressEvents ?? []).map((event, index) => {
-                            const isLast =
-                              index === (item.metadata?.progressEvents?.length ?? 0) - 1;
-                            const isRunFinished =
-                              item.status === "completed" || item.status === "failed";
+                    {item.metadata?.progressEvents && item.metadata.progressEvents.length > 0 && (
+                      <ul className="progress-list">
+                        {(item.metadata?.progressEvents ?? []).map((event, index) => {
+                          const isLast = index === (item.metadata?.progressEvents?.length ?? 0) - 1;
+                          const isRunFinished =
+                            item.status === "completed" || item.status === "failed";
 
-                            let stepClass = "step-completed";
-                            let icon = (
+                          let stepClass = "step-completed";
+                          let icon = (
+                            <svg
+                              className="icon-completed"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          );
+
+                          if (event.status === "failed") {
+                            stepClass = "step-failed";
+                            icon = (
                               <svg
-                                className="icon-completed"
+                                className="icon-failed"
                                 width="14"
                                 height="14"
                                 viewBox="0 0 24 24"
@@ -570,416 +621,404 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                               >
-                                <polyline points="20 6 9 17 4 12"></polyline>
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
                               </svg>
                             );
+                          } else if (isLast && !isRunFinished) {
+                            stepClass = "step-executing";
+                            icon = <div className="spinner" />;
+                          }
 
-                            if (event.status === "failed") {
-                              stepClass = "step-failed";
-                              icon = (
-                                <svg
-                                  className="icon-failed"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                              );
-                            } else if (isLast && !isRunFinished) {
-                              stepClass = "step-executing";
-                              icon = <div className="spinner" />;
-                            }
-
-                            return (
-                              <li key={index} className={`progress-step ${stepClass}`}>
-                                <div className="progress-step-icon">{icon}</div>
-                                <span>{event.message}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-
-                      {item.metadata?.finalSummary && (
-                        <div className="run-summary markdown-body">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {item.metadata.finalSummary}
-                          </ReactMarkdown>
-                        </div>
-                      )}
-                      {item.status === "completed" &&
-                        item.metadata?.calendarAction === "cancel" &&
-                        Boolean(item.metadata.calendarEvents?.length) &&
-                        (() => {
-                          const events = item.metadata?.calendarEvents ?? [];
-                          const selectedEventId = selectedCalendarEvents[item.id] ?? events[0].id;
-                          const selectedEvent =
-                            events.find((event) => event.id === selectedEventId) ?? events[0];
                           return (
-                            <div className="approval-section calendar-cancellation-selector">
-                              <div className="approval-heading">
-                                <span className="approval-kicker">Choose a meeting</span>
-                                <strong>Prepare cancellation</strong>
-                              </div>
-                              <label htmlFor={`calendar-event-${item.id}`}>Upcoming meeting</label>
-                              <select
-                                id={`calendar-event-${item.id}`}
-                                value={selectedEventId}
-                                onChange={(event) =>
-                                  setSelectedCalendarEvents((current) => ({
-                                    ...current,
-                                    [item.id]: event.target.value,
-                                  }))
-                                }
-                                disabled={mutation !== null || sessionExpired}
-                              >
-                                {events.map((event) => (
-                                  <option key={event.id} value={event.id}>
-                                    {event.start} — {event.topic}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="schedule-proposal" aria-live="polite">
-                                <dl className="schedule-proposal-details">
+                            <li key={index} className={`progress-step ${stepClass}`}>
+                              <div className="progress-step-icon">{icon}</div>
+                              <span>{event.message}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+
+                    {item.metadata?.finalSummary && (
+                      <div className="run-summary markdown-body">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {item.metadata.finalSummary}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                    {item.status === "completed" &&
+                      item.metadata?.calendarAction === "cancel" &&
+                      !item.metadata.proposedAction &&
+                      Boolean(item.metadata.calendarEvents?.length) &&
+                      (() => {
+                        const events = item.metadata?.calendarEvents ?? [];
+                        const selectedEventId = selectedCalendarEvents[item.id] ?? events[0].id;
+                        const selectedEvent =
+                          events.find((event) => event.id === selectedEventId) ?? events[0];
+                        return (
+                          <div className="approval-section calendar-cancellation-selector">
+                            <div className="approval-heading">
+                              <span className="approval-kicker">Choose a meeting</span>
+                              <strong>Prepare cancellation</strong>
+                            </div>
+                            <label htmlFor={`calendar-event-${item.id}`}>Upcoming meeting</label>
+                            <select
+                              id={`calendar-event-${item.id}`}
+                              value={selectedEventId}
+                              onChange={(event) =>
+                                setSelectedCalendarEvents((current) => ({
+                                  ...current,
+                                  [item.id]: event.target.value,
+                                }))
+                              }
+                              disabled={mutation !== null || sessionExpired}
+                            >
+                              {events.map((event) => (
+                                <option key={event.id} value={event.id}>
+                                  {event.start
+                                    ? formatCalendarEventTime(event.start)
+                                    : "Time not specified"}{" "}
+                                  — {event.topic}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="schedule-proposal" aria-live="polite">
+                              <dl className="schedule-proposal-details">
+                                {(selectedEvent.start || selectedEvent.end) && (
                                   <div>
                                     <dt>When</dt>
                                     <dd>
-                                      {selectedEvent.start} — {selectedEvent.end}
+                                      {[selectedEvent.start, selectedEvent.end]
+                                        .filter((value): value is string => Boolean(value))
+                                        .map(formatCalendarEventTime)
+                                        .join(" — ")}
                                     </dd>
                                   </div>
+                                )}
+                                {selectedEvent.location && (
                                   <div>
                                     <dt>Where</dt>
                                     <dd>{selectedEvent.location}</dd>
                                   </div>
+                                )}
+                                {selectedEvent.attendees.length > 0 && (
                                   <div>
                                     <dt>Invited</dt>
-                                    <dd>
-                                      {selectedEvent.attendees.join(", ") || "No invitees listed"}
-                                    </dd>
+                                    <dd>{selectedEvent.attendees.join(", ")}</dd>
                                   </div>
+                                )}
+                                {selectedEvent.description && (
                                   <div>
                                     <dt>Description</dt>
                                     <dd>{selectedEvent.description}</dd>
                                   </div>
-                                </dl>
+                                )}
+                              </dl>
+                            </div>
+                            <div className="approval-actions">
+                              <button
+                                type="button"
+                                className="approve-btn"
+                                onClick={() =>
+                                  void handleCalendarEventSelection(item.id, selectedEventId)
+                                }
+                                disabled={mutation !== null || sessionExpired}
+                              >
+                                {mutation?.runId === item.id && mutation.action === "select"
+                                  ? "Preparing…"
+                                  : "Prepare cancellation"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    {item.error && (
+                      <div className="run-error">
+                        <div>
+                          {typeof item.error === "string" ? item.error : item.error.message}
+                        </div>
+                        {typeof item.error !== "string" &&
+                          item.error.action === "connect_integration" &&
+                          item.error.plugin && (
+                            <div className="mt-2">
+                              <a
+                                href={`/api/connect?plugin=${item.error.plugin}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="connect-btn"
+                              >
+                                Connect {item.error.plugin}
+                              </a>
+                            </div>
+                          )}
+                      </div>
+                    )}
+
+                    {item.status === "waiting_for_approval" && (
+                      <div className="approval-section">
+                        <div className="approval-heading">
+                          <span className="approval-kicker">Approval required</span>
+                          <strong>{actionLabel(item)}</strong>
+                        </div>
+                        <p>Review this action before Relay makes any consequential change.</p>
+                        {item.metadata?.scheduleProposal && (
+                          <div className="schedule-proposal" aria-label="Meeting proposal">
+                            <div className="schedule-proposal-title">
+                              {item.metadata.scheduleProposal.event.summary}
+                            </div>
+                            <dl className="schedule-proposal-details">
+                              <div>
+                                <dt>Selected time</dt>
+                                <dd>
+                                  {formatScheduleTime(
+                                    item.metadata.scheduleProposal.event.start,
+                                    item.metadata.scheduleProposal.event.timeZone,
+                                  )}
+                                  {" – "}
+                                  {formatScheduleTime(
+                                    item.metadata.scheduleProposal.event.end,
+                                    item.metadata.scheduleProposal.event.timeZone,
+                                  )}
+                                </dd>
                               </div>
+                              <div>
+                                <dt>Duration</dt>
+                                <dd>
+                                  {item.metadata.scheduleProposal.event.durationMinutes} minutes
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Meeting</dt>
+                                <dd>Google Meet · Primary calendar</dd>
+                              </div>
+                              {item.metadata.scheduleProposal.event.location && (
+                                <div>
+                                  <dt>Location</dt>
+                                  <dd>{item.metadata.scheduleProposal.event.location}</dd>
+                                </div>
+                              )}
+                              {item.metadata.scheduleProposal.event.description && (
+                                <div>
+                                  <dt>Agenda</dt>
+                                  <dd>{item.metadata.scheduleProposal.event.description}</dd>
+                                </div>
+                              )}
+                              {item.metadata.scheduleProposal.event.recurrence && (
+                                <div>
+                                  <dt>Recurrence</dt>
+                                  <dd>
+                                    {item.metadata.scheduleProposal.event.recurrence === "one_off"
+                                      ? "One-off"
+                                      : "Recurring"}
+                                  </dd>
+                                </div>
+                              )}
+                              {item.metadata.scheduleProposal.event.reminderMinutes !==
+                                undefined && (
+                                <div>
+                                  <dt>Reminder</dt>
+                                  <dd>
+                                    {item.metadata.scheduleProposal.event.reminderMinutes} minutes
+                                    before
+                                  </dd>
+                                </div>
+                              )}
+                              <div>
+                                <dt>Inviting</dt>
+                                <dd>
+                                  {item.metadata.scheduleProposal.invitation.attendees.join(", ")}
+                                </dd>
+                              </div>
+                            </dl>
+                            {item.metadata.scheduleProposal.alternatives.length > 0 && (
+                              <div className="schedule-alternatives">
+                                <span>Other verified options</span>
+                                <ul>
+                                  {item.metadata.scheduleProposal.alternatives.map(
+                                    (alternative) => (
+                                      <li key={alternative.start}>
+                                        {formatScheduleTime(
+                                          alternative.start,
+                                          alternative.timeZone,
+                                        )}
+                                        {" – "}
+                                        {formatScheduleTime(alternative.end, alternative.timeZone)}
+                                      </li>
+                                    ),
+                                  )}
+                                </ul>
+                              </div>
+                            )}
+                            {item.metadata.scheduleProposal.email && (
+                              <div className="schedule-email-preview">
+                                <strong>Additional email</strong>
+                                <span>
+                                  To: {item.metadata.scheduleProposal.email.to.join(", ")}
+                                </span>
+                                <span>Subject: {item.metadata.scheduleProposal.email.subject}</span>
+                                <p>{item.metadata.scheduleProposal.email.body}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {item.metadata?.action === "reply" &&
+                          item.metadata.draftBody &&
+                          (editingRunId === item.id ? (
+                            <form
+                              onSubmit={(event) => handleEditSubmit(event, item)}
+                              className="reply-editor"
+                            >
+                              <label htmlFor={`reply-${item.id}`}>Reply body</label>
+                              <textarea
+                                id={`reply-${item.id}`}
+                                value={draftBody}
+                                onChange={(event) => setDraftBody(event.target.value)}
+                                maxLength={5000}
+                                rows={6}
+                              />
                               <div className="approval-actions">
                                 <button
-                                  type="button"
+                                  type="submit"
                                   className="approve-btn"
-                                  onClick={() =>
-                                    void handleCalendarEventSelection(item.id, selectedEventId)
-                                  }
                                   disabled={mutation !== null || sessionExpired}
                                 >
-                                  {mutation?.runId === item.id && mutation.action === "select"
-                                    ? "Preparing…"
-                                    : "Prepare cancellation"}
+                                  {mutation?.runId === item.id && mutation.action === "edit"
+                                    ? "Saving…"
+                                    : "Save reply"}
                                 </button>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      {item.error && (
-                        <div className="run-error">
-                          <div>
-                            {typeof item.error === "string" ? item.error : item.error.message}
-                          </div>
-                          {typeof item.error !== "string" &&
-                            item.error.action === "connect_integration" &&
-                            item.error.plugin && (
-                              <div className="mt-2">
-                                <a
-                                  href={`/api/connect?plugin=${item.error.plugin}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="connect-btn"
-                                >
-                                  Connect {item.error.plugin}
-                                </a>
-                              </div>
-                            )}
-                        </div>
-                      )}
-
-                      {item.status === "waiting_for_approval" && (
-                        <div className="approval-section">
-                          <div className="approval-heading">
-                            <span className="approval-kicker">Approval required</span>
-                            <strong>{actionLabel(item)}</strong>
-                          </div>
-                          <p>Review this action before Relay makes any consequential change.</p>
-                          {item.metadata?.scheduleProposal && (
-                            <div className="schedule-proposal" aria-label="Meeting proposal">
-                              <div className="schedule-proposal-title">
-                                {item.metadata.scheduleProposal.event.summary}
-                              </div>
-                              <dl className="schedule-proposal-details">
-                                <div>
-                                  <dt>Selected time</dt>
-                                  <dd>
-                                    {formatScheduleTime(
-                                      item.metadata.scheduleProposal.event.start,
-                                      item.metadata.scheduleProposal.event.timeZone,
-                                    )}
-                                    {" – "}
-                                    {formatScheduleTime(
-                                      item.metadata.scheduleProposal.event.end,
-                                      item.metadata.scheduleProposal.event.timeZone,
-                                    )}
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt>Duration</dt>
-                                  <dd>
-                                    {item.metadata.scheduleProposal.event.durationMinutes} minutes
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt>Meeting</dt>
-                                  <dd>Google Meet · Primary calendar</dd>
-                                </div>
-                                {item.metadata.scheduleProposal.event.location && (
-                                  <div>
-                                    <dt>Location</dt>
-                                    <dd>{item.metadata.scheduleProposal.event.location}</dd>
-                                  </div>
-                                )}
-                                {item.metadata.scheduleProposal.event.description && (
-                                  <div>
-                                    <dt>Agenda</dt>
-                                    <dd>{item.metadata.scheduleProposal.event.description}</dd>
-                                  </div>
-                                )}
-                                {item.metadata.scheduleProposal.event.recurrence && (
-                                  <div>
-                                    <dt>Recurrence</dt>
-                                    <dd>
-                                      {item.metadata.scheduleProposal.event.recurrence === "one_off"
-                                        ? "One-off"
-                                        : "Recurring"}
-                                    </dd>
-                                  </div>
-                                )}
-                                {item.metadata.scheduleProposal.event.reminderMinutes !==
-                                  undefined && (
-                                  <div>
-                                    <dt>Reminder</dt>
-                                    <dd>
-                                      {item.metadata.scheduleProposal.event.reminderMinutes} minutes
-                                      before
-                                    </dd>
-                                  </div>
-                                )}
-                                <div>
-                                  <dt>Inviting</dt>
-                                  <dd>
-                                    {item.metadata.scheduleProposal.invitation.attendees.join(", ")}
-                                  </dd>
-                                </div>
-                              </dl>
-                              {item.metadata.scheduleProposal.alternatives.length > 0 && (
-                                <div className="schedule-alternatives">
-                                  <span>Other verified options</span>
-                                  <ul>
-                                    {item.metadata.scheduleProposal.alternatives.map(
-                                      (alternative) => (
-                                        <li key={alternative.start}>
-                                          {formatScheduleTime(
-                                            alternative.start,
-                                            alternative.timeZone,
-                                          )}
-                                          {" – "}
-                                          {formatScheduleTime(
-                                            alternative.end,
-                                            alternative.timeZone,
-                                          )}
-                                        </li>
-                                      ),
-                                    )}
-                                  </ul>
-                                </div>
-                              )}
-                              {item.metadata.scheduleProposal.email && (
-                                <div className="schedule-email-preview">
-                                  <strong>Additional email</strong>
-                                  <span>
-                                    To: {item.metadata.scheduleProposal.email.to.join(", ")}
-                                  </span>
-                                  <span>
-                                    Subject: {item.metadata.scheduleProposal.email.subject}
-                                  </span>
-                                  <p>{item.metadata.scheduleProposal.email.body}</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {item.metadata?.action === "reply" &&
-                            item.metadata.draftBody &&
-                            (editingRunId === item.id ? (
-                              <form
-                                onSubmit={(event) => handleEditSubmit(event, item)}
-                                className="reply-editor"
-                              >
-                                <label htmlFor={`reply-${item.id}`}>Reply body</label>
-                                <textarea
-                                  id={`reply-${item.id}`}
-                                  value={draftBody}
-                                  onChange={(event) => setDraftBody(event.target.value)}
-                                  maxLength={5000}
-                                  rows={6}
-                                />
-                                <div className="approval-actions">
-                                  <button
-                                    type="submit"
-                                    className="approve-btn"
-                                    disabled={mutation !== null || sessionExpired}
-                                  >
-                                    {mutation?.runId === item.id && mutation.action === "edit"
-                                      ? "Saving…"
-                                      : "Save reply"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="cancel-btn"
-                                    onClick={() => setEditingRunId(null)}
-                                    disabled={mutation !== null || sessionExpired}
-                                  >
-                                    Keep current
-                                  </button>
-                                </div>
-                              </form>
-                            ) : (
-                              <div className="reply-preview">{item.metadata.draftBody}</div>
-                            ))}
-                          {actionError && mutation?.runId === item.id && (
-                            <div className="action-error" role="alert">
-                              {actionError}
-                            </div>
-                          )}
-                          <div className="approval-actions">
-                            {item.metadata?.action === "reply" &&
-                              item.metadata.draftBody &&
-                              editingRunId !== item.id && (
                                 <button
                                   type="button"
-                                  className="secondary-btn"
-                                  onClick={() => {
-                                    setDraftBody(item.metadata?.draftBody ?? "");
-                                    setEditingRunId(item.id);
-                                  }}
+                                  className="cancel-btn"
+                                  onClick={() => setEditingRunId(null)}
                                   disabled={mutation !== null || sessionExpired}
                                 >
-                                  Edit reply
+                                  Keep current
                                 </button>
-                              )}
-                            <button
-                              type="button"
-                              onClick={() => handleCancel(item.id)}
-                              className="cancel-btn"
-                              disabled={mutation !== null || sessionExpired}
-                            >
-                              {mutation?.runId === item.id && mutation.action === "cancel"
-                                ? "Cancelling…"
-                                : "Cancel"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleApprove(item.id)}
-                              className="approve-btn"
-                              disabled={
-                                mutation !== null || editingRunId === item.id || sessionExpired
-                              }
-                            >
-                              {mutation?.runId === item.id && mutation.action === "approve"
-                                ? "Approving…"
-                                : "Approve"}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {item.status === "cancelled" && (
-                        <div className="run-notice">
-                          This action was cancelled before execution.
-                        </div>
-                      )}
-                      {item.status === "completed" &&
-                        item.metadata?.outcome === "no_availability" && (
-                          <div className="run-notice">
-                            No meeting was created because no verified availability matched the
-                            requested constraints. Try another time or duration.
+                              </div>
+                            </form>
+                          ) : (
+                            <div className="reply-preview">{item.metadata.draftBody}</div>
+                          ))}
+                        {actionError && mutation?.runId === item.id && (
+                          <div className="action-error" role="alert">
+                            {actionError}
                           </div>
                         )}
-                      {item.status === "completed" &&
-                        item.metadata?.outcome === "availability_unavailable" && (
-                          <div className="run-notice">
-                            Calendar availability could not be verified for one or more attendees.
-                            Ask the attendee to share availability or retry with another verified
-                            attendee.
-                          </div>
-                        )}
-                      {item.status === "completed" &&
-                        item.metadata?.outcome !== "no_availability" &&
-                        item.metadata?.outcome !== "availability_unavailable" &&
-                        item.metadata?.calendarAction !== "cancel" && (
-                          <div className="run-notice run-notice-success">
-                            Action completed successfully.
-                            {item.metadata?.scheduleExecution?.eventLink && (
-                              <a
-                                href={item.metadata.scheduleExecution.eventLink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="run-link"
+                        <div className="approval-actions">
+                          {item.metadata?.action === "reply" &&
+                            item.metadata.draftBody &&
+                            editingRunId !== item.id && (
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() => {
+                                  setDraftBody(item.metadata?.draftBody ?? "");
+                                  setEditingRunId(item.id);
+                                }}
+                                disabled={mutation !== null || sessionExpired}
                               >
-                                Open calendar event
-                              </a>
+                                Edit reply
+                              </button>
                             )}
-                          </div>
-                        )}
-                    </div>
-                  );
-                }
-              })}
-            </div>
-          ) : (
-            <>
-              {historyLoading && <div className="history-status">Loading conversation…</div>}
-              {historyError && (
-                <div className="history-status" role="alert">
-                  {historyError}
-                  {sessionExpired && <a href="/login">Sign in again</a>}
-                </div>
-              )}
-              <div className="context-list">
-                <div className="context-item">
-                  <span className="context-icon" aria-hidden="true">
-                    ✦
-                  </span>
-                  <span>
-                    <strong>Priority first</strong>
-                    <small>Important context, without the noise.</small>
-                  </span>
-                </div>
-                <div className="context-item">
-                  <span className="context-icon" aria-hidden="true">
-                    ↗
-                  </span>
-                  <span>
-                    <strong>Actions stay yours</strong>
-                    <small>Relay asks before anything consequential.</small>
-                  </span>
-                </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCancel(item.id)}
+                            className="cancel-btn"
+                            disabled={mutation !== null || sessionExpired}
+                          >
+                            {mutation?.runId === item.id && mutation.action === "cancel"
+                              ? "Cancelling…"
+                              : "Cancel"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApprove(item.id)}
+                            className="approve-btn"
+                            disabled={
+                              mutation !== null || editingRunId === item.id || sessionExpired
+                            }
+                          >
+                            {mutation?.runId === item.id && mutation.action === "approve"
+                              ? "Approving…"
+                              : "Approve"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {item.status === "cancelled" && (
+                      <div className="run-notice">This action was cancelled before execution.</div>
+                    )}
+                    {item.status === "completed" &&
+                      item.metadata?.outcome === "no_availability" && (
+                        <div className="run-notice">
+                          No meeting was created because no verified availability matched the
+                          requested constraints. Try another time or duration.
+                        </div>
+                      )}
+                    {item.status === "completed" &&
+                      item.metadata?.outcome === "availability_unavailable" && (
+                        <div className="run-notice">
+                          Calendar availability could not be verified for one or more attendees. Ask
+                          the attendee to share availability or retry with another verified
+                          attendee.
+                        </div>
+                      )}
+                    {item.status === "completed" &&
+                      item.metadata?.outcome !== "no_availability" &&
+                      item.metadata?.outcome !== "availability_unavailable" &&
+                      item.metadata?.calendarAction !== "cancel" && (
+                        <div className="run-notice run-notice-success">
+                          Action completed successfully.
+                          {item.metadata?.scheduleExecution?.eventLink && (
+                            <a
+                              href={item.metadata.scheduleExecution.eventLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="run-link"
+                            >
+                              Open calendar event
+                            </a>
+                          )}
+                        </div>
+                      )}
+                  </div>
+                );
+              }
+            })}
+          </div>
+        ) : (
+          <>
+            {historyLoading && <div className="history-status">Loading conversation…</div>}
+            {historyError && (
+              <div className="history-status" role="alert">
+                {historyError}
+                {sessionExpired && <a href="/login">Sign in again</a>}
               </div>
-            </>
-          )}
+            )}
+            <div className="context-list">
+              <div className="context-item">
+                <span className="context-icon" aria-hidden="true">
+                  ✦
+                </span>
+                <span>
+                  <strong>Priority first</strong>
+                  <small>Important context, without the noise.</small>
+                </span>
+              </div>
+              <div className="context-item">
+                <span className="context-icon" aria-hidden="true">
+                  ↗
+                </span>
+                <span>
+                  <strong>Actions stay yours</strong>
+                  <small>Relay asks before anything consequential.</small>
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </aside>
 
       <FloatingComposer

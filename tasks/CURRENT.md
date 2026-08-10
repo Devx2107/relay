@@ -183,3 +183,58 @@ Show a useful subject in every email-triage table row.
 1. Extend subject extraction for nested thread messages.
 2. Add regression coverage.
 3. Run focused checks.
+
+### Clarification
+
+Thread-list previews are not treated as email subjects. When a list result lacks a subject header, the server reads the listed thread before rendering the table so the subject column uses the original message subject and the summary column remains the email preview.
+
+### Verification
+
+- [x] Formatting
+- [x] Typecheck
+- [x] Focused loop tests
+
+### Status
+
+COMPLETE
+
+## Follow-up: readable calendar times and stale deleted meetings
+
+### Goal
+
+Make calendar output easier to read and prevent deleted events from remaining selectable in completed cancellation runs.
+
+### Requirements
+
+- Display calendar times in user-friendly local form such as `Aug 11 at 8 PM`.
+- Omit calendar fields that are not present.
+- Hide the cancellation selector after the selected event has been deleted.
+
+### Acceptance Criteria
+
+- Calendar summaries and cancellation details do not show raw ISO timestamps.
+- Missing location, attendees, or description fields are omitted.
+- A completed deletion shows success and does not continue showing the deleted meeting as selectable.
+
+### Relevant Areas
+
+- `lib/agent/loop.ts`
+- `app/components/command-console.tsx`
+- `tests/loop.test.ts`
+
+### Plan
+
+1. Add readable time formatting and conditional calendar fields.
+2. Hide stale post-deletion controls.
+3. Add regression coverage and run checks.
+
+### Verification
+
+- [x] Formatting
+- [x] Lint (two pre-existing warnings in `components/GradientWaves.tsx`)
+- [x] Typecheck
+- [x] Focused loop tests
+
+### Status
+
+COMPLETE

@@ -223,6 +223,70 @@ describe("AgentLoop", () => {
     );
   });
 
+  it("uses the original Gmail subject while keeping the preview as the email summary", async () => {
+    const onComplete = vi.fn();
+    const complete = vi.fn().mockResolvedValue({
+      toolCalls: [
+        {
+          id: "email-read",
+          type: "function",
+          function: { name: "gmail.search_threads", arguments: '{"q":"in:inbox"}' },
+        },
+      ],
+    });
+    const integration = {
+      executeTool: vi.fn(async (_tenantId, call) => {
+        if (call.action === "api.threads.get") {
+          return {
+            content: "Success",
+            data: {
+              id: "thread-1",
+              messages: [
+                {
+                  payload: {
+                    headers: [{ name: "Subject", value: "CI: All jobs have failed" }],
+                  },
+                },
+              ],
+            },
+          };
+        }
+        return {
+          content: "Success",
+          data: {
+            threads: [
+              {
+                id: "thread-1",
+                snippet:
+                  "[Devx2107/relay] CI workflow run CI: All jobs have failed View workflow run Status",
+              },
+            ],
+          },
+        };
+      }),
+    } as unknown as IntegrationService;
+
+    await new AgentLoop({
+      runId: "email-subject-run",
+      tenantId: "tenant-1",
+      conversationId: "conv-1",
+      groq: { complete } as unknown as GroqAdapter,
+      registry: new ToolRegistry(integration),
+      onProgress: vi.fn(),
+      onComplete,
+    }).execute("Show my unread emails");
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          finalSummary: expect.stringContaining(
+            "| 1 | CI: All jobs have failed | [Devx2107/relay] CI workflow run CI: All jobs have failed View workflow run Status |",
+          ),
+        }),
+      }),
+    );
+  });
+
   it("requires a meeting selection before proposing calendar cancellation", async () => {
     const onComplete = vi.fn();
     const integration = {

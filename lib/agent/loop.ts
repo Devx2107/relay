@@ -84,11 +84,11 @@ export interface CalendarEventCandidate {
   id: string;
   calendarId: string;
   topic: string;
-  start: string;
-  end: string;
-  location: string;
+  start?: string;
+  end?: string;
+  location?: string;
   attendees: string[];
-  description: string;
+  description?: string;
 }
 
 function text(value: unknown, fallback = "Not specified"): string {
@@ -97,6 +97,20 @@ function text(value: unknown, fallback = "Not specified"): string {
 
 function tableValue(value: string): string {
   return value.replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|");
+}
+
+function displayCalendarTime(value: string, timeZone?: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const minute = new Intl.DateTimeFormat("en-US", { timeZone, minute: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    hour12: true,
+    ...(minute !== "0" ? { minute: "2-digit" } : {}),
+    ...(timeZone ? { timeZone } : {}),
+  }).format(date);
 }
 
 function collectionRecords(value: unknown, keys: readonly string[]): Record<string, unknown>[] {
@@ -146,29 +160,55 @@ function compactSubject(value: unknown): string | undefined {
   return subject.length > 120 ? `${subject.slice(0, 117).trimEnd()}…` : subject;
 }
 
-function emailSubject(email: Record<string, unknown>): string {
+function emailHeaderSubject(email: Record<string, unknown>): string | undefined {
   const messages = Array.isArray(email.messages) ? email.messages.filter(isRecord) : [];
-  const nestedSubject = messages
-    .map((message) =>
-      message.subject ??
-      headerValue(isRecord(message.payload) ? message.payload.headers : undefined, "subject"),
-    )
-    .find((subject) => typeof subject === "string" && subject.trim());
   return (
-    compactSubject(
-      email.subject ??
-        headerValue(isRecord(email.payload) ? email.payload.headers : undefined, "subject") ??
-        nestedSubject,
-    ) ?? compactSubject(email.snippet ?? email.summary ?? email.body ?? email.text) ?? "No subject"
+    messages
+      .map(
+        (message) =>
+          message.subject ??
+          headerValue(isRecord(message.payload) ? message.payload.headers : undefined, "subject"),
+      )
+      .find(
+        (subject): subject is string => typeof subject === "string" && Boolean(subject.trim()),
+      ) ??
+    (typeof email.subject === "string"
+      ? email.subject
+      : headerValue(isRecord(email.payload) ? email.payload.headers : undefined, "subject"))
   );
 }
 
-function formatEmailResults(messages: readonly GroqMessage[]): string | undefined {
-  const emails = toolRecords(
-    messages,
-    ["gmail.search_threads", "gmail.get_thread"],
-    ["threads", "messages", "items"],
+function emailSubject(email: Record<string, unknown>): string {
+  return (
+    compactSubject(emailHeaderSubject(email)) ??
+    compactSubject(email.snippet ?? email.summary ?? email.body ?? email.text) ??
+    "No subject"
   );
+}
+
+function loadedThreadSubject(
+  messages: readonly GroqMessage[],
+  threadId: unknown,
+): string | undefined {
+  if (typeof threadId !== "string") return undefined;
+  for (const message of messages) {
+    if (message.role !== "tool" || message.name !== "gmail.get_thread") continue;
+    try {
+      const result = JSON.parse(message.content ?? "");
+      const thread = isRecord(result) && isRecord(result.data) ? result.data : undefined;
+      if (thread?.id === threadId) {
+        const subject = compactSubject(emailHeaderSubject(thread));
+        if (subject) return subject;
+      }
+    } catch {
+      // Ignore malformed tool messages and keep the list preview fallback.
+    }
+  }
+  return undefined;
+}
+
+function formatEmailResults(messages: readonly GroqMessage[]): string | undefined {
+  const emails = toolRecords(messages, ["gmail.search_threads"], ["threads", "items"]);
   if (emails.length === 0) return undefined;
 
   const rows = emails.slice(0, 20).map((email, index) => {
@@ -176,11 +216,43 @@ function formatEmailResults(messages: readonly GroqMessage[]): string | undefine
       email.snippet ?? email.summary ?? email.body ?? email.text,
       "No preview available.",
     );
-    return `| ${index + 1} | ${tableValue(emailSubject(email))} | ${tableValue(preview)} |`;
+    const subject = loadedThreadSubject(messages, email.id) ?? emailSubject(email);
+    return `| ${index + 1} | ${tableValue(subject)} | ${tableValue(preview)} |`;
   });
   return ["## Email triage", "", "| # | Subject | Summary |", "| --- | --- | --- |", ...rows].join(
     "\n",
   );
+}
+
+async function loadEmailThreadHeaders(
+  messages: GroqMessage[],
+  registry: ToolRegistry,
+  tenantId: string,
+): Promise<void> {
+  const threadIds = [
+    ...new Set(
+      toolRecords(messages, ["gmail.search_threads"], ["threads", "items"])
+        .map((thread) => thread.id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ].slice(0, 10);
+
+  for (const threadId of threadIds) {
+    const result = await registry.execute({
+      id: `${threadId}:subject`,
+      tenantId,
+      toolId: "gmail.get_thread",
+      operation: "read",
+      args: { id: threadId, format: "full" },
+    });
+    if (!result.ok) continue;
+    messages.push({
+      role: "tool",
+      tool_call_id: `${threadId}:subject`,
+      name: "gmail.get_thread",
+      content: JSON.stringify(result),
+    });
+  }
 }
 
 function calendarEventCandidates(messages: readonly GroqMessage[]): CalendarEventCandidate[] {
@@ -194,16 +266,26 @@ function calendarEventCandidates(messages: readonly GroqMessage[]): CalendarEven
     const id = text(event.id, "");
     if (!id || seen.has(id)) return [];
     seen.add(id);
-    const start = isRecord(event.start)
-      ? text(event.start.dateTime ?? event.start.date)
-      : "Not specified";
-    const end = isRecord(event.end) ? text(event.end.dateTime ?? event.end.date) : "Not specified";
+    const startValue = isRecord(event.start)
+      ? (event.start.dateTime ?? event.start.date)
+      : undefined;
+    const endValue = isRecord(event.end) ? (event.end.dateTime ?? event.end.date) : undefined;
+    const start = typeof startValue === "string" ? startValue : undefined;
+    const end = typeof endValue === "string" ? endValue : undefined;
     const attendees = Array.isArray(event.attendees)
       ? event.attendees
           .filter(isRecord)
           .map((attendee) => text(attendee.email ?? attendee.displayName, ""))
           .filter(Boolean)
       : [];
+    const location =
+      typeof event.location === "string" && event.location.trim()
+        ? event.location.trim()
+        : undefined;
+    const description =
+      typeof event.description === "string" && event.description.trim()
+        ? event.description.trim()
+        : undefined;
     return [
       {
         id,
@@ -211,43 +293,61 @@ function calendarEventCandidates(messages: readonly GroqMessage[]): CalendarEven
         topic: text(event.summary, "Untitled meeting"),
         start,
         end,
-        location: text(event.location),
+        location,
         attendees,
-        description: text(event.description),
+        description,
       },
     ];
   });
 }
 
-function formatCalendarResults(events: readonly CalendarEventCandidate[]): string | undefined {
+function formatCalendarResults(
+  events: readonly CalendarEventCandidate[],
+  timeZone?: string,
+): string | undefined {
   if (events.length === 0) return undefined;
   return [
     "## Upcoming meetings",
     "",
-    ...events
-      .slice(0, 20)
-      .flatMap((event, index) => [
+    ...events.slice(0, 20).flatMap((event, index) => {
+      const fields = [
+        event.start || event.end
+          ? `| When | ${tableValue(
+              [event.start, event.end]
+                .filter((value): value is string => Boolean(value))
+                .map((value) => displayCalendarTime(value, timeZone))
+                .join(" to "),
+            )} |`
+          : undefined,
+        event.location ? `| Where | ${tableValue(event.location)} |` : undefined,
+        event.attendees.length
+          ? `| Invited | ${tableValue(event.attendees.join(", "))} |`
+          : undefined,
+        `| Topic | ${tableValue(event.topic)} |`,
+        event.description ? `| Description | ${tableValue(event.description)} |` : undefined,
+      ].filter((field): field is string => Boolean(field));
+      return [
         `### ${index + 1}. ${event.topic}`,
         "",
         "| Field | Details |",
         "| --- | --- |",
-        `| When | ${tableValue(`${event.start} to ${event.end}`)} |`,
-        `| Where | ${tableValue(event.location)} |`,
-        `| Invited | ${tableValue(event.attendees.join(", ") || "No invitees listed")} |`,
-        `| Topic | ${tableValue(event.topic)} |`,
-        `| Description | ${tableValue(event.description)} |`,
+        ...fields,
         "",
-      ]),
+      ];
+    }),
   ].join("\n");
 }
 
 function formattedTriageSummary(
   source: "email" | "calendar" | "all" | undefined,
   messages: readonly GroqMessage[],
+  timeZone?: string,
 ): string | undefined {
   const sections = [
     ...(source === "calendar" ? [] : [formatEmailResults(messages)]),
-    ...(source === "email" ? [] : [formatCalendarResults(calendarEventCandidates(messages))]),
+    ...(source === "email"
+      ? []
+      : [formatCalendarResults(calendarEventCandidates(messages), timeZone)]),
   ].filter((section): section is string => Boolean(section));
   return sections.length > 0 ? sections.join("\n\n") : undefined;
 }
@@ -782,7 +882,7 @@ export class AgentLoop {
 
     if (intent.kind === "triage" && intent.parameters.calendarAction === "cancel") {
       const calendarEvents = calendarEventCandidates(messages);
-      const summary = formatCalendarResults(calendarEvents);
+      const summary = formatCalendarResults(calendarEvents, this.options.accountTimeZone);
       await this.options.onProgress({
         runId: this.options.runId,
         status: "completed",
@@ -810,7 +910,12 @@ export class AgentLoop {
     // through the dedicated triage-action service, where the item owner,
     // source, status, and arguments are revalidated before approval.
     if (intent.kind === "triage" && !intent.parameters.calendarAction) {
-      let summary = formattedTriageSummary(intent.parameters.source, messages) ?? planResponse.text;
+      if (intent.parameters.source !== "calendar") {
+        await loadEmailThreadHeaders(messages, this.options.registry, this.options.tenantId);
+      }
+      let summary =
+        formattedTriageSummary(intent.parameters.source, messages, this.options.accountTimeZone) ??
+        planResponse.text;
       if (!summary) {
         try {
           // A no-tool completion cannot contain an assistant tool call or a
