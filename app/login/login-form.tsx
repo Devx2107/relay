@@ -15,7 +15,7 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col relative overflow-hidden bg-zinc-950">
+    <div className="flex h-screen w-full flex-col relative overflow-hidden bg-black">
       {/* Background layer */}
       <div className="absolute inset-0 z-0 pointer-events-auto">
         <GradientBlinds

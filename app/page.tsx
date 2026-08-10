@@ -3,7 +3,7 @@ import GradientBlinds from "@/components/GradientBlinds";
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen relative overflow-hidden bg-zinc-950">
+    <div className="flex flex-col min-h-screen relative overflow-hidden bg-black">
       {/* Background layer */}
       <div className="absolute inset-0 z-0 pointer-events-auto">
         <GradientBlinds

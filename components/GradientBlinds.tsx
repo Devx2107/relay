@@ -45,7 +45,7 @@ const GradientBlinds: React.FC<GradientBlindsProps> = ({
   dpr,
   paused = false,
   gradientColors,
-  angle = 0,
+  angle = 20,
   noise = 0.3,
   blindCount = 16,
   blindMinWidth = 60,

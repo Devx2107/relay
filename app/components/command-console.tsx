@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { FloatingComposer } from "./floating-composer";
 
 interface CommandConsoleProps {
   email: string;
@@ -105,7 +106,6 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
   const [briefingState, setBriefingState] = useState<BriefingState>("loading");
   const [briefingError, setBriefingError] = useState("The briefing could not be loaded.");
   const hasLoadedBriefing = useRef(false);
-  const commandInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ messages: Message[]; runs: Run[] }>({
@@ -123,25 +123,6 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
   const [editingRunId, setEditingRunId] = useState<string | null>(null);
   const [draftBody, setDraftBody] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    function focusComposer(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      const isEditingControl =
-        target?.isContentEditable ||
-        target?.tagName === "INPUT" ||
-        target?.tagName === "SELECT" ||
-        target?.tagName === "TEXTAREA";
-      if (isEditingControl || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k")
-        return;
-
-      event.preventDefault();
-      commandInputRef.current?.focus();
-    }
-
-    window.addEventListener("keydown", focusComposer);
-    return () => window.removeEventListener("keydown", focusComposer);
-  }, []);
 
   useEffect(() => {
     if (hasLoadedBriefing.current) return;
@@ -347,22 +328,6 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
 
   return (
     <main className="console-shell">
-      <header className="console-header">
-        <div className="brand-lockup" aria-label="Relay home">
-          <span className="brand-mark" aria-hidden="true">
-            R
-          </span>
-          <span>
-            <strong>Relay</strong>
-            <small>One calm command center</small>
-          </span>
-        </div>
-        <div className="account-pill" title={email || "Authenticated account"}>
-          <span className="status-dot" aria-hidden="true" />
-          <span className="account-email">{email || "Connected account"}</span>
-        </div>
-      </header>
-
       {sessionExpired && (
         <div className="session-banner" role="alert">
           <span>Your session expired. Sign in again to reconnect Relay.</span>
@@ -816,66 +781,14 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
         </aside>
       </div>
 
-      <section className="composer-panel" aria-labelledby="composer-title">
-        <div className="composer-heading">
-          <div>
-            <div className="eyebrow">Command console</div>
-            <h2 id="composer-title">What should we work on?</h2>
-          </div>
-          <span className="shortcut-hint">Ctrl+K to focus · Enter to send</span>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <label className="sr-only" htmlFor="command-input">
-            Enter a command for Relay
-          </label>
-          <textarea
-            id="command-input"
-            name="command"
-            ref={commandInputRef}
-            value={command}
-            aria-keyshortcuts="Control+Enter Meta+Enter"
-            onChange={(event) => setCommand(event.target.value)}
-            placeholder="Try “triage my inbox” or “find time for a team sync”"
-            rows={2}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                e.currentTarget.form?.requestSubmit();
-                return;
-              }
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e as any);
-              }
-            }}
-          />
-          <div className="composer-footer">
-            <span className="composer-note">Relay reads first. You stay in control.</span>
-            <button
-              type="submit"
-              aria-label="Send command"
-              disabled={!command.trim() || isSubmitting || sessionExpired}
-            >
-              <span aria-hidden="true">↑</span>
-              Send
-            </button>
-          </div>
-          {commandError && (
-            <div className="command-error" role="alert">
-              <span>{commandError}</span>
-              <button
-                type="button"
-                className="inline-retry-btn"
-                onClick={() =>
-                  void handleSubmit(new Event("submit") as unknown as FormEvent<HTMLFormElement>)
-                }
-              >
-                Retry command
-              </button>
-            </div>
-          )}
-        </form>
-      </section>
+      <FloatingComposer
+        command={command}
+        setCommand={setCommand}
+        handleSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        sessionExpired={sessionExpired}
+        commandError={commandError}
+      />
     </main>
   );
 }
