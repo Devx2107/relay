@@ -1,32 +1,35 @@
 # Current Task
 
-## Current Task: AGT-012 valid Groq summary requests
+## Current Task: TRI-014 responsive persistent daily briefing
 
 ## Goal
 
-Ensure the read-only triage summary request is valid when the planner has already used Gmail or Calendar tools.
+Make the daily Gmail/Calendar briefing faster and keep persisted triage state consistent across refreshes.
 
 ## Context
 
-The read-only triage path now asks Groq for a final summary after tool calls. It currently forwards assistant `tool_calls` and `tool` messages while sending no tools, which Groq rejects with `Tool choice is none, but model called a tool`.
+The briefing retrieves Gmail and Calendar in parallel, but classification is serial and persistence upserts refreshed rows as pending. This causes visible lag and can resurrect dismissed or snoozed items.
 
 ## Requirements
 
-- Form a valid summary request after read-tool execution.
-- Preserve the read-only triage boundary and explicit approval-gated triage actions.
-- Add regression coverage preventing tool-call messages in no-tool summary requests.
+- Classify independent briefing candidates with bounded concurrency.
+- Preserve existing triage status during refresh upserts.
+- Reconcile disappeared items only for sources fetched successfully.
+- Keep unavailable sources and their stored items intact.
 
 ## Acceptance Criteria
 
-- Summary requests contain no assistant `tool_calls` or `tool` role when sent without tools.
-- A triage command completes with a read summary or bounded fallback.
-- Explicit triage action proposals remain approval-gated and executable through their existing API.
+- Daily briefing classification no longer waits serially for every candidate.
+- Dismissed/snoozed items are not reset to pending by refresh.
+- Removed source items are reconciled without deleting data.
 
 ## Relevant Areas
 
-- `lib/agent/loop.ts`
-- `tests/loop.test.ts`
-- `docs/AGENT.md`
+- `lib/triage-briefing.ts`
+- `lib/triage-ranking.ts`
+- `lib/triage-items.ts`
+- `tests/triage-briefing.test.ts`
+- `tests/triage-items.test.ts`
 
 ## Constraints
 
@@ -36,17 +39,16 @@ The read-only triage path now asks Groq for a final summary after tool calls. It
 
 ## Plan
 
-1. Inspect the summary request and Groq message contract.
-2. Normalize the tool transcript into ordinary summary context.
-3. Add focused regression coverage.
-4. Run checks and review security and scope.
+1. Parallelize bounded candidate classification.
+2. Preserve statuses and reconcile stale source items.
+3. Add regression coverage and run checks.
 
 ## Verification
 
 - [x] Formatting (changed files; pre-existing `tasks/BACKLOG.md` and `lib/agent/groq.ts` remain unformatted)
 - [x] Lint
 - [x] Typecheck
-- [x] Focused tests (`tests/loop.test.ts`, `tests/triage-actions.test.ts`)
+- [ ] Focused tests
 - [x] Build
 - [x] Security and scope review
 
@@ -60,4 +62,4 @@ The read-only triage path now asks Groq for a final summary after tool calls. It
 
 ## Status
 
-COMPLETE
+IN PROGRESS

@@ -40,7 +40,6 @@ function requiredString(value: unknown, field: string, maxLength: number): strin
 function validRecipients(value: unknown): value is string[] {
   return (
     Array.isArray(value) &&
-    value.length > 0 &&
     value.length <= MAX_ATTENDEES &&
     new Set(value).size === value.length &&
     value.every(
@@ -95,6 +94,9 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
   const end = requiredString(event.end, "event end", 80);
   const timeZone = requiredString(event.timeZone, "timezone", 100);
   const durationMinutes = event.durationMinutes;
+  const location = event.location;
+  const description = event.description;
+  const recurrence = event.recurrence;
   const rankValues = value.alternatives;
   if (
     !Number.isFinite(Date.parse(start)) ||
@@ -109,6 +111,17 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
     event.calendarId !== "primary"
   ) {
     throw new SchedulingExecutionError("The scheduling proposal is invalid.");
+  }
+  if (
+    (location !== undefined &&
+      (typeof location !== "string" || location.trim().length === 0 || location.length > 200)) ||
+    (description !== undefined &&
+      (typeof description !== "string" ||
+        description.trim().length === 0 ||
+        description.length > 2000)) ||
+    (recurrence !== undefined && recurrence !== "one_off" && recurrence !== "recurring")
+  ) {
+    throw new SchedulingExecutionError("The scheduling proposal has invalid event details.");
   }
 
   if (!Array.isArray(rankValues) || rankValues.length > MAX_ALTERNATIVES) {
@@ -149,6 +162,9 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
       durationMinutes,
       meetingProvider: "google_meet",
       calendarId: "primary",
+      ...(location ? { location: location.trim() } : {}),
+      ...(description ? { description: description.trim() } : {}),
+      ...(recurrence ? { recurrence } : {}),
     },
     invitation: { attendees: [...invitation.attendees] },
     alternatives,
@@ -163,6 +179,8 @@ export function calendarCreateArgs(proposal: SchedulingProposal, requestId: stri
       summary: proposal.event.summary,
       start: { dateTime: proposal.event.start, timeZone: proposal.event.timeZone },
       end: { dateTime: proposal.event.end, timeZone: proposal.event.timeZone },
+      ...(proposal.event.location ? { location: proposal.event.location } : {}),
+      ...(proposal.event.description ? { description: proposal.event.description } : {}),
       attendees: proposal.invitation.attendees.map((email) => ({ email })),
       conferenceData: {
         createRequest: {
@@ -199,6 +217,24 @@ function providerLink(result: AgentToolResult): string | undefined {
   return isRecord(data) && typeof data.htmlLink === "string" ? data.htmlLink : undefined;
 }
 
+function organizerEmail(value: Record<string, unknown>): string | undefined {
+  const organizer = value.organizer;
+  if (!isRecord(organizer) || typeof organizer.email !== "string") return undefined;
+  return SCHEDULE_EMAIL_PATTERN.test(organizer.email) ? organizer.email.toLowerCase() : undefined;
+}
+
+function googleEventLink(eventId: string, organizer: string): string {
+  const eid = Buffer.from(`${eventId} ${organizer}`, "utf8").toString("base64url");
+  return `https://www.google.com/calendar/event?eid=${eid}`;
+}
+
+function verifiedEventData(result: AgentToolResult): Record<string, unknown> {
+  if (!result.ok || !isRecord(result.data) || typeof result.data.id !== "string") {
+    throw new SchedulingExecutionError("The created calendar event could not be read back.");
+  }
+  return result.data;
+}
+
 function safeProviderError(message: string): UserFacingError {
   return { code: "integration_unavailable", message, retryable: true, action: "retry" };
 }
@@ -233,7 +269,31 @@ export async function executeSchedulingProposal(
   } catch {
     return { ok: false, error: safeProviderError("The calendar event could not be verified.") };
   }
-  const summary: SchedulingExecutionSummary = { eventId, eventLink: providerLink(eventResult) };
+  const verificationResult = await registry.execute({
+    id: `${runId}:calendar-verification`,
+    tenantId,
+    toolId: "calendar.get_event",
+    operation: "read",
+    args: { calendarId: proposal.event.calendarId, id: eventId },
+  });
+  let verifiedEvent: Record<string, unknown>;
+  try {
+    verifiedEvent = verifiedEventData(verificationResult);
+  } catch {
+    return {
+      ok: false,
+      partial: { eventId },
+      error: safeProviderError(
+        "The calendar event was created but could not be read back for verification.",
+      ),
+    };
+  }
+  const summary: SchedulingExecutionSummary = {
+    eventId,
+    eventLink: organizerEmail(verifiedEvent)
+      ? googleEventLink(eventId, organizerEmail(verifiedEvent) as string)
+      : providerLink(eventResult),
+  };
 
   const emailArgs = emailSendArgs(proposal);
   if (emailArgs) {

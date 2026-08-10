@@ -45,16 +45,16 @@ export class TriageBriefingService {
     } = await supabase.auth.getUser();
     if (error || !user) throw new TriageBriefingAuthError();
 
-    const inputs = await this.inputService.retrieve(user.id);
+    const [inputs, settingsResult] = await Promise.all([
+      this.inputService.retrieve(user.id),
+      supabase
+        .from("user_settings")
+        .select("vip_contacts")
+        .eq("user_id", user.id)
+        .single(),
+    ]);
 
-    // Fetch user settings to get VIP contacts
-    const { data: settings } = await supabase
-      .from("user_settings")
-      .select("vip_contacts")
-      .eq("user_id", user.id)
-      .single();
-
-    const vipContacts: string[] = settings?.vip_contacts || [];
+    const vipContacts: string[] = settingsResult.data?.vip_contacts || [];
 
     const ranked = await rankTriageInputs(inputs, {
       relevantAddresses: [...(user.email ? [user.email] : []), ...vipContacts],
@@ -62,6 +62,9 @@ export class TriageBriefingService {
     });
 
     await this.itemService.persist(ranked);
+    if ("reconcile" in this.itemService && typeof this.itemService.reconcile === "function") {
+      await this.itemService.reconcile(inputs, ranked);
+    }
     return this.itemService.getResponse(limit, inputs);
   }
 }

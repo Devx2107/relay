@@ -34,6 +34,7 @@ describe("TriageBriefingService", () => {
     const inputService = { retrieve: vi.fn().mockResolvedValue(inputs) };
     const itemService = {
       persist: vi.fn().mockResolvedValue([]),
+      reconcile: vi.fn(),
       getResponse: vi.fn().mockResolvedValue({ items: [], generatedAt: "now" }),
     };
     const classifier = { classify: vi.fn() };
@@ -49,6 +50,7 @@ describe("TriageBriefingService", () => {
     expect(result.items).toEqual([]);
     expect(inputService.retrieve).toHaveBeenCalledWith("user-1");
     expect(itemService.persist).toHaveBeenCalledWith([]);
+    expect(itemService.reconcile).toHaveBeenCalledWith(inputs, []);
     expect(itemService.getResponse).toHaveBeenCalledWith(5, inputs);
     expect(classifier.classify).not.toHaveBeenCalled();
   });

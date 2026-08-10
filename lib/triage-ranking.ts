@@ -397,23 +397,30 @@ export async function rankTriageInputs(
     now,
     relevantAddresses: options.relevantAddresses,
   });
-  const classified: NormalizedTriageCandidate[] = [];
-
-  for (const candidate of candidates) {
-    if (
-      !options.classifier ||
-      (candidate.signals.urgency > 0 && candidate.signals.responseExpectation > 0)
-    ) {
-      classified.push(candidate);
-      continue;
+  const classified = new Array<NormalizedTriageCandidate>(candidates.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= candidates.length) return;
+      const candidate = candidates[index];
+      if (
+        !options.classifier ||
+        (candidate.signals.urgency > 0 && candidate.signals.responseExpectation > 0)
+      ) {
+        classified[index] = candidate;
+        continue;
+      }
+      try {
+        const classification = await options.classifier.classify(candidate);
+        classified[index] = classification ? applyClassification(candidate, classification) : candidate;
+      } catch {
+        classified[index] = candidate;
+      }
     }
-    try {
-      const classification = await options.classifier.classify(candidate);
-      classified.push(classification ? applyClassification(candidate, classification) : candidate);
-    } catch {
-      classified.push(candidate);
-    }
-  }
+  };
+  const workerCount = Math.min(4, candidates.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   const ranked = classified
     .map((candidate) => {

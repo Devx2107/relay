@@ -4,6 +4,7 @@ import {
   findAvailableSlots,
   type CalendarAvailabilityPayload,
 } from "../lib/scheduling-availability";
+import { parseExplicitScheduleWindow } from "../lib/scheduling";
 
 const request = {
   attendees: ["alice@example.com"],
@@ -18,6 +19,19 @@ function payload(busy: Array<{ start: string; end: string }> = []): CalendarAvai
 }
 
 describe("scheduling availability", () => {
+  it("parses an explicit same-day local time window", () => {
+    expect(
+      parseExplicitScheduleWindow(
+        "Schedule a meeting from 3 to 4 pm for today",
+        "Asia/Kolkata",
+        new Date("2026-08-10T04:00:00.000Z"),
+      ),
+    ).toEqual({
+      timeMin: "2026-08-10T09:30:00.000Z",
+      timeMax: "2026-08-10T10:30:00.000Z",
+    });
+  });
+
   it("returns the earliest three verified weekday slots", () => {
     const slots = findAvailableSlots(request, payload());
 
@@ -80,6 +94,21 @@ describe("scheduling availability", () => {
     expect(slots[0].start).toBe("2026-08-10T09:00:00.000Z");
   });
 
+  it("honors an explicit evening window outside default work hours", () => {
+    const slots = findAvailableSlots(
+      {
+        ...request,
+        windowStart: "2026-08-10T19:00:00.000Z",
+        windowEnd: "2026-08-10T20:00:00.000Z",
+        durationMinutes: 60,
+        allowOutsideWorkday: true,
+      },
+      payload(),
+    );
+
+    expect(slots[0].start).toBe("2026-08-10T19:00:00.000Z");
+  });
+
   it("fails closed for invalid windows or malformed availability", () => {
     expect(() =>
       findAvailableSlots({ ...request, windowEnd: request.windowStart }, payload()),
@@ -87,6 +116,11 @@ describe("scheduling availability", () => {
     expect(() =>
       findAvailableSlots(request, payload([{ start: "not-a-date", end: request.windowEnd }])),
     ).toThrow(AvailabilityDataError);
+    expect(() =>
+      findAvailableSlots(request, {
+        calendars: { "alice@example.com": { busy: [], errors: [{ reason: "notFound" }] } },
+      }),
+    ).toThrow(/unavailable/);
     expect(() => findAvailableSlots(request, { calendars: {} })).toThrow(/incomplete/);
   });
 });

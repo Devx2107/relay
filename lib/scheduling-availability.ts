@@ -19,6 +19,7 @@ export interface AvailabilitySearchRequest {
   durationMinutes: number;
   timeZone: string;
   maxResults?: number;
+  allowOutsideWorkday?: boolean;
 }
 
 export interface AvailableSlot {
@@ -31,7 +32,10 @@ export interface AvailableSlot {
 }
 
 export interface CalendarAvailabilityPayload {
-  calendars: Record<string, { busy: BusyInterval[] }>;
+  calendars: Record<
+    string,
+    { busy: BusyInterval[]; errors?: Array<{ domain?: string; reason?: string }> }
+  >;
 }
 
 export class AvailabilityDataError extends Error {
@@ -68,7 +72,10 @@ function localParts(value: Date, timeZone: string) {
 
 function normalizeIntervals(
   attendees: string[],
-  calendars: Record<string, { busy: BusyInterval[] }>,
+  calendars: Record<
+    string,
+    { busy: BusyInterval[]; errors?: Array<{ domain?: string; reason?: string }> }
+  >,
   windowStart: number,
   windowEnd: number,
 ): Map<string, Array<{ start: number; end: number }>> {
@@ -77,6 +84,11 @@ function normalizeIntervals(
     const calendar = calendars[attendee];
     if (!calendar || !Array.isArray(calendar.busy)) {
       throw new AvailabilityDataError("Availability was incomplete for one or more attendees.");
+    }
+    if (Array.isArray(calendar.errors) && calendar.errors.length > 0) {
+      throw new AvailabilityDataError(
+        "Calendar availability was unavailable for one or more attendees.",
+      );
     }
     const intervals = calendar.busy
       .map((interval) => {
@@ -157,10 +169,11 @@ export function findAvailableSlots(
     const isWeekday = localStart.weekday !== "Sat" && localStart.weekday !== "Sun";
     const isGrid = localStart.minutes % GRID_MINUTES === 0;
     const sameLocalDay = localStart.date === localEnd.date;
-    const withinWorkday =
-      localStart.minutes >= WORKDAY_START_MINUTES &&
-      localEnd.minutes <= WORKDAY_END_MINUTES &&
-      localEnd.minutes > localStart.minutes;
+    const withinWorkday = request.allowOutsideWorkday
+      ? localEnd.minutes > localStart.minutes
+      : localStart.minutes >= WORKDAY_START_MINUTES &&
+        localEnd.minutes <= WORKDAY_END_MINUTES &&
+        localEnd.minutes > localStart.minutes;
     const blocked = [...intervals.values()].some((attendeeIntervals) =>
       attendeeIntervals.some(
         (interval) => interval.start < candidate + durationMs && interval.end > candidate,

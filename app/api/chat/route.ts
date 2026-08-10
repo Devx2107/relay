@@ -95,7 +95,10 @@ export async function POST(request: Request) {
 
     // Start agent run.
     const agentService = new AgentService(user.id);
-    const run = await agentService.startRun(conversationId, command, { accountTimeZone: timeZone });
+    const run = await agentService.startRun(conversationId, command, {
+      accountTimeZone: timeZone,
+      accountEmail: user.email ?? undefined,
+    });
 
     return NextResponse.json({ conversationId, run });
   } catch (error) {

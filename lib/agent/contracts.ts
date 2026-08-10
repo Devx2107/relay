@@ -38,6 +38,9 @@ export interface ScheduleIntent {
     attendees?: string[];
     attendeeStatus: ScheduleAttendeeStatus;
     unresolvedAttendees?: string[];
+    location?: string;
+    agenda?: string;
+    recurrence?: "one_off" | "recurring";
     options: ScheduleOptions;
   };
 }
@@ -195,6 +198,9 @@ export function parseAgentIntent(value: unknown): AgentIntent {
   const attendees = value.parameters.attendees;
   const attendeeStatus = value.parameters.attendeeStatus;
   const unresolvedAttendees = value.parameters.unresolvedAttendees;
+  const location = value.parameters.location;
+  const agenda = value.parameters.agenda;
+  const recurrence = value.parameters.recurrence;
   const options = value.parameters.options;
   if (
     attendeeStatus !== "provided" &&
@@ -202,6 +208,22 @@ export function parseAgentIntent(value: unknown): AgentIntent {
     attendeeStatus !== "unresolved"
   ) {
     throw new ContractValidationError("schedule.parameters.attendeeStatus is invalid");
+  }
+  for (const [field, fieldValue, maxLength] of [
+    ["location", location, 200],
+    ["agenda", agenda, 2000],
+  ] as const) {
+    if (
+      fieldValue !== undefined &&
+      (typeof fieldValue !== "string" ||
+        fieldValue.trim().length === 0 ||
+        fieldValue.length > maxLength)
+    ) {
+      throw new ContractValidationError(`schedule.parameters.${field} is invalid`);
+    }
+  }
+  if (recurrence !== undefined && recurrence !== "one_off" && recurrence !== "recurring") {
+    throw new ContractValidationError("schedule.parameters.recurrence is invalid");
   }
   if (
     attendees !== undefined &&
@@ -274,6 +296,9 @@ export function parseAgentIntent(value: unknown): AgentIntent {
       attendees: attendees as string[] | undefined,
       attendeeStatus,
       unresolvedAttendees: unresolvedAttendees as string[] | undefined,
+      location: location as string | undefined,
+      agenda: agenda as string | undefined,
+      recurrence: recurrence as "one_off" | "recurring" | undefined,
       options: options as unknown as ScheduleOptions,
     },
   };

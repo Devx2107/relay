@@ -60,6 +60,10 @@ function extractAttendees(input: string):
         .map((name) => name.trim())
         .filter((name) => name.length > 0 && !name.includes("@"))
     : [];
+  const attendingMatch = input.match(/\b([a-z][a-z\s.&-]{0,80}?)\s+will\s+be\s+attending\b/i);
+  if (attendingMatch && unique.length === 0 && unresolved.length === 0) {
+    unresolved.push(attendingMatch[1].trim());
+  }
   if (unique.length === 0 && unresolved.length === 0) return { attendeeStatus: "missing" };
   if (unresolved.length > MAX_SCHEDULE_ATTENDEES) {
     return {
@@ -99,8 +103,47 @@ function triageLimit(command: string): number | undefined {
 }
 
 function isScheduleCommand(command: string): boolean {
-  return /\b(schedule|book|arrange|availability|available|find\s+(?:a\s+)?time|set\s+up)\b/i.test(
+  return /\b(schedule|schduele|schuele|scheduel|schedual|book|arrange|availability|available|find\s+(?:a\s+)?time|set\s+up)\b/i.test(
     command,
+  );
+}
+
+export function requestsSchedulingClarification(command: string): boolean {
+  return /\b(?:ask\s+me\s+(?:all\s+)?(?:the\s+)?requirements?|what\s+(?:details|information)\s+do\s+you\s+need|need\s+(?:more\s+)?(?:details|information))\b/i.test(
+    command,
+  );
+}
+
+export function hasScheduleTimeConstraint(command: string): boolean {
+  return /\b(?:today|tomorrow|tonight|morning|afternoon|evening|next\s+week|next\s+month|on\s+\w+|from\s+\d|at\s+\d|between\s+\d|\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i.test(
+    command,
+  );
+}
+
+function extractScheduleDetails(input: string) {
+  const location = input
+    .match(
+      /\b(?:at|in)\s+(.+?)(?=\s+and\s+(?:the\s+)?agenda\b|\s+agenda\b|\s+and\s+it\s+is\b|$)/i,
+    )?.[1]
+    ?.trim()
+    .replace(/[,.]+$/, "");
+  const agenda = input
+    .match(
+      /\bagenda\s*(?:is|:)?\s*(?:to\s+)?(.+?)(?=\s+and\s+(?:it\s+is\s+)?(?:a\s+)?(?:one[- ]off|recurring)\b|$)/i,
+    )?.[1]
+    ?.trim()
+    .replace(/[.!?]+$/, "");
+  const recurrence = /\b(?:one[- ]off|one time|single event)\b/i.test(input)
+    ? "one_off"
+    : /\brecurr(?:ing|ence)|every\s+(?:day|week|month)\b/i.test(input)
+      ? "recurring"
+      : undefined;
+  return { location, agenda, recurrence };
+}
+
+export function isHelpCommand(command: string): boolean {
+  return /^(?:help|help me|what can you do|what are your features|what are your capabilities|how can you help|what do you support)\??$/i.test(
+    command.trim(),
   );
 }
 
@@ -118,7 +161,7 @@ function scheduleIntent(command: string, accountTimeZone?: string): IntentParseR
     ok: true,
     intent: parseAgentIntent({
       kind: "schedule",
-      parameters: { request: command, ...attendees, options },
+      parameters: { request: command, ...attendees, ...extractScheduleDetails(command), options },
     }),
   };
 }
@@ -136,6 +179,12 @@ function isTriageCommand(command: string, scheduling = false): boolean {
 
 function isUnsupportedAction(command: string): boolean {
   return /\b(send|reply|archive|delete|ignore|snooze|cancel)\b/i.test(command);
+}
+
+function canInheritHistory(command: string): boolean {
+  return /^(?:what|how)\s+about\b|^(?:make|change|move|use|set)\s+(?:it|that|this)\b|^(?:and|also|with|for|on|at|tomorrow|today|show|list|give|which|who|when)\b/i.test(
+    command,
+  );
 }
 
 export function parseCommand(
@@ -178,7 +227,12 @@ export function parseCommand(
       };
     }
 
-    // Attempt to inherit intent from history
+    // Inherit only when the new command is phrased as a contextual follow-up.
+    if (!canInheritHistory(command)) {
+      return invalidRequest(
+        "That request is not supported yet. Try asking for triage or scheduling.",
+      );
+    }
     for (let i = history.length - 1; i >= 0; i--) {
       const msg = history[i];
       if (msg.role === "user") {

@@ -184,6 +184,14 @@ describe("AgentService", () => {
         ok: true,
         data: { id: "event-1", htmlLink: "https://calendar.example/event-1" },
       })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          id: "event-1",
+          htmlLink: "https://calendar.example/verified-event-1",
+          organizer: { email: "owner@example.com" },
+        },
+      })
       .mockResolvedValueOnce({ ok: true, data: { id: "message-1" } });
     (ToolRegistry as any).mockImplementationOnce(() => ({ execute }));
 
@@ -246,6 +254,10 @@ describe("AgentService", () => {
     );
     expect(execute).toHaveBeenNthCalledWith(
       2,
+      expect.objectContaining({ toolId: "calendar.get_event", operation: "read" }),
+    );
+    expect(execute).toHaveBeenNthCalledWith(
+      3,
       expect.objectContaining({ toolId: "gmail.send", operation: "write" }),
       true,
     );

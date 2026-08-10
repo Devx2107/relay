@@ -36,7 +36,7 @@ The server response contains `items`, `generatedAt`, and optional per-source sta
 
 ## Proactive console briefing
 
-The authenticated console loads its briefing through the internal `GET /api/triage?limit=5` boundary. The endpoint uses `no-store` semantics, authenticates the Supabase session before integrations or persistence, retrieves both sources, ranks with the authenticated account as relevant-address context, upserts ranked candidates, and returns the TRI-003 response. Browser code never calls Corsair, Gmail, Calendar, Groq, or Supabase persistence directly.
+The authenticated console loads its briefing through the internal `GET /api/triage?limit=5` boundary. The endpoint uses `no-store` semantics, authenticates the Supabase session before integrations or persistence, retrieves Gmail and Calendar in parallel, ranks candidates with bounded concurrent classification, preserves existing item status during upserts, reconciles disappeared items only for successfully fetched sources, and returns the TRI-003 response. Browser code never calls Corsair, Gmail, Calendar, Groq, or Supabase persistence directly.
 
 ## TRI-005 and TRI-006 actions
 

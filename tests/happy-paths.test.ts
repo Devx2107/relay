@@ -142,7 +142,12 @@ describe("end-to-end happy paths", () => {
     const integration = {
       executeTool: vi.fn().mockResolvedValue({
         content: "Availability read",
-        data: { calendars: { "alice@example.com": { busy: [] } } },
+        data: {
+          calendars: {
+            primary: { busy: [] },
+            "alice@example.com": { busy: [] },
+          },
+        },
       }),
     } as unknown as IntegrationService;
     const planningComplete = vi.fn();

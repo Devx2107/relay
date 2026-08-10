@@ -44,6 +44,14 @@ function makeRegistry() {
     content: "Created",
     data: { id: "event-1", htmlLink: "https://calendar.example/event-1" },
   });
+  integration.mockResponse("googlecalendar", "api.events.get", {
+    content: "Verified",
+    data: {
+      id: "event-1",
+      htmlLink: "https://calendar.example/verified-event-1",
+      organizer: { email: "owner@example.com" },
+    },
+  });
   integration.mockResponse("gmail", "api.messages.send", {
     content: "Sent",
     data: { id: "message-1" },
@@ -91,12 +99,13 @@ describe("scheduling execution", () => {
       ok: true,
       summary: {
         eventId: "event-1",
-        eventLink: "https://calendar.example/event-1",
+        eventLink: "https://www.google.com/calendar/event?eid=ZXZlbnQtMSBvd25lckBleGFtcGxlLmNvbQ",
         emailMessageId: "message-1",
       },
     });
     expect(integration.getCalls().map(({ call }) => `${call.plugin}:${call.action}`)).toEqual([
       "googlecalendar:api.events.create",
+      "googlecalendar:api.events.get",
       "gmail:api.messages.send",
     ]);
   });
@@ -127,6 +136,22 @@ describe("scheduling execution", () => {
       ok: false,
       partial: { eventId: "event-1" },
       error: { code: "integration_unavailable" },
+    });
+  });
+
+  it("does not report success when the created event cannot be read back", async () => {
+    const { integration, registry } = makeRegistry();
+    integration.mockResponse("googlecalendar", "api.events.get", {
+      content: "",
+      error: "event not found",
+    });
+
+    const result = await executeSchedulingProposal(registry, "tenant-1", proposal, "run-4");
+
+    expect(result).toMatchObject({
+      ok: false,
+      partial: { eventId: "event-1" },
+      error: { message: expect.stringContaining("read back") },
     });
   });
 

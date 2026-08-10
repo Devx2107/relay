@@ -201,7 +201,6 @@ export class TriageItemService {
       user_id: authData.user.id,
       source: candidate.source,
       source_id: candidate.id.replace(`${candidate.source}:`, ""),
-      status: "pending" as const,
       confidence: null,
       content: toContent(candidate),
     }));
@@ -211,6 +210,51 @@ export class TriageItemService {
       .select();
     if (error) throw new Error("Failed to persist triage items.");
     return (data ?? []).map(mapRow).filter((item): item is PersistedTriageItem => Boolean(item));
+  }
+
+  async reconcile(inputs: TriageInputs, candidates: readonly RankedTriageCandidate[]): Promise<void> {
+    const supabase = await this.createServerClient();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user)
+      throw new Error("Authentication is required to reconcile triage items.");
+
+    const currentBySource: Record<TriageSource, Set<string>> = {
+      email: new Set(),
+      calendar: new Set(),
+    };
+    for (const candidate of candidates) {
+      currentBySource[candidate.source].add(candidate.id.replace(`${candidate.source}:`, ""));
+    }
+
+    const availableSources = (Object.keys(currentBySource) as TriageSource[]).filter(
+      (source) => !inputs[source].error,
+    );
+    if (availableSources.length === 0) return;
+
+    const { data, error } = await supabase
+      .from("triage_items")
+      .select("id, source, source_id, status")
+      .eq("user_id", authData.user.id)
+      .eq("status", "pending");
+    if (error) throw new Error("Failed to read triage items for reconciliation.");
+
+    const stale = (data ?? []).filter(
+      (row: { source?: unknown; source_id?: unknown }) =>
+        isSource(row.source) &&
+        availableSources.includes(row.source) &&
+        typeof row.source_id === "string" &&
+        !currentBySource[row.source].has(row.source_id),
+    );
+    await Promise.all(
+      stale.map((row: { id?: unknown }) =>
+        supabase
+          .from("triage_items")
+          .update({ status: "dismissed", updated_at: new Date().toISOString() })
+          .eq("id", row.id)
+          .eq("user_id", authData.user.id)
+          .eq("status", "pending"),
+      ),
+    );
   }
 
   async getResponse(limit?: number, inputs?: TriageInputs): Promise<TriageResponse> {

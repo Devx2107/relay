@@ -68,6 +68,19 @@ function parseTimeZone(request: string): string | undefined {
   return match[1];
 }
 
+function parseWindowDuration(request: string): number | undefined {
+  const match = request.match(
+    /\b(?:from\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,
+  );
+  if (!match) return undefined;
+  const startMeridiem = match[3] ?? match[6];
+  const start = clockValue(Number(match[1]), Number(match[2] ?? 0), startMeridiem);
+  const end = clockValue(Number(match[4]), Number(match[5] ?? 0), match[6]);
+  const duration = (end - start) * 60 + Number(match[5] ?? 0) - Number(match[2] ?? 0);
+  if (duration <= 0) throw new ScheduleOptionsError("The time window must end after it starts.");
+  return duration;
+}
+
 export function resolveAccountTimeZone(accountTimeZone?: string): {
   timeZone: string;
   source: ScheduleOptionSource;
@@ -81,7 +94,7 @@ export function resolveAccountTimeZone(accountTimeZone?: string): {
 }
 
 export function applyScheduleDefaults(request: string, accountTimeZone?: string): ScheduleOptions {
-  const durationMinutes = parseDuration(request);
+  const durationMinutes = parseDuration(request) ?? parseWindowDuration(request);
   const meetingProvider = parseProvider(request);
   const calendarId = parseCalendar(request);
   const requestedTimeZone = parseTimeZone(request);
@@ -99,4 +112,93 @@ export function applyScheduleDefaults(request: string, accountTimeZone?: string)
       timeZone: optionSource(requestedTimeZone, accountZone.source),
     },
   };
+}
+
+export interface ExplicitScheduleWindow {
+  timeMin: string;
+  timeMax: string;
+}
+
+function localDateParts(value: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value;
+  return { year: get("year"), month: get("month"), day: get("day") };
+}
+
+/** Convert a local wall-clock time into an instant without using server timezone. */
+function zonedLocalDate(
+  date: { year: string; month: string; day: string },
+  hour: number,
+  minute: number,
+  timeZone: string,
+): Date {
+  let instant = Date.UTC(Number(date.year), Number(date.month) - 1, Number(date.day), hour, minute);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(instant));
+    const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+    const displayed = Date.UTC(
+      get("year"),
+      get("month") - 1,
+      get("day"),
+      get("hour"),
+      get("minute"),
+    );
+    const desired = Date.UTC(
+      Number(date.year),
+      Number(date.month) - 1,
+      Number(date.day),
+      hour,
+      minute,
+    );
+    instant += desired - displayed;
+  }
+  return new Date(instant);
+}
+
+function clockValue(hour: number, minute: number, meridiem: string | undefined): number {
+  if (minute > 59 || hour < 1 || hour > 12)
+    throw new ScheduleOptionsError("The time window is invalid.");
+  if (!meridiem) return hour;
+  const normalized = meridiem.toLowerCase();
+  return (hour % 12) + (normalized === "pm" ? 12 : 0);
+}
+
+/** Parse explicit local windows such as “from 7 to 8 pm for today”. */
+export function parseExplicitScheduleWindow(
+  request: string,
+  timeZone: string,
+  now: Date = new Date(),
+): ExplicitScheduleWindow | undefined {
+  const dayMatch = request.match(/\b(today|tomorrow)\b/i);
+  if (!dayMatch) return undefined;
+  const match = request.match(
+    /\b(?:from\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|[-–])\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,
+  );
+  if (!match) return undefined;
+
+  const startMeridiem = match[3] ?? match[6];
+  const endMeridiem = match[6];
+  const startHour = clockValue(Number(match[1]), Number(match[2] ?? 0), startMeridiem);
+  const endHour = clockValue(Number(match[4]), Number(match[5] ?? 0), endMeridiem);
+  const date = localDateParts(
+    new Date(now.getTime() + (dayMatch[1].toLowerCase() === "tomorrow" ? 86400000 : 0)),
+    timeZone,
+  ) as { year: string; month: string; day: string };
+  const start = zonedLocalDate(date, startHour, Number(match[2] ?? 0), timeZone);
+  const end = zonedLocalDate(date, endHour, Number(match[5] ?? 0), timeZone);
+  if (end <= start) throw new ScheduleOptionsError("The time window must end after it starts.");
+  return { timeMin: start.toISOString(), timeMax: end.toISOString() };
 }

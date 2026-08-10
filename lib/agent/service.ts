@@ -20,6 +20,7 @@ export interface AgentServiceOptions {
 
 export interface AgentScheduleContext {
   accountTimeZone?: string;
+  accountEmail?: string;
 }
 
 export class AgentService {
@@ -113,6 +114,7 @@ export class AgentService {
         scheduleContext.accountTimeZone && isValidTimeZone(scheduleContext.accountTimeZone)
           ? scheduleContext.accountTimeZone
           : undefined,
+      accountEmail: scheduleContext.accountEmail,
       onProgress: async (event) => {
         events.push(event);
         await supabase

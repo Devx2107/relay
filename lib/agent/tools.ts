@@ -54,13 +54,22 @@ export const TOOL_DEFINITIONS = [
     argumentNames: ["id", "format"],
   },
   {
+    id: "calendar.get_event",
+    plugin: "googlecalendar",
+    action: "api.events.get",
+    operation: "read",
+    availability: "available",
+    description: "Verify a calendar event exists.",
+    argumentNames: ["calendarId", "id"],
+  },
+  {
     id: "calendar.get_upcoming_events",
     plugin: "googlecalendar",
     action: "api.events.getMany",
     operation: "read",
     availability: "available",
     description: "Read upcoming calendar events.",
-    argumentNames: ["timeMin", "maxResults", "singleEvents", "orderBy"],
+    argumentNames: ["calendarId", "timeMin", "maxResults", "singleEvents", "orderBy"],
   },
   {
     id: "calendar.check_availability",

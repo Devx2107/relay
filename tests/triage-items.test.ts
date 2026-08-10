@@ -99,7 +99,6 @@ describe("TriageItemService", () => {
           user_id: "user-1",
           source: "email",
           source_id: "thread-1",
-          status: "pending",
           content: expect.objectContaining({ score: 77, summary: "Subject thread-1" }),
         }),
       ],

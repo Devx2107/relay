@@ -43,6 +43,7 @@ interface Run {
   metadata?: {
     progressEvents?: Array<{ status: string; message: string }>;
     finalSummary?: string;
+    outcome?: "no_availability" | "availability_unavailable";
     action?: string;
     triageItemId?: string;
     draftBody?: string;
@@ -64,6 +65,9 @@ interface ScheduleProposal {
     durationMinutes: number;
     meetingProvider: "google_meet";
     calendarId: "primary";
+    location?: string;
+    description?: string;
+    recurrence?: "one_off" | "recurring";
   };
   invitation: { attendees: string[] };
   alternatives: Array<{ start: string; end: string; timeZone: string }>;
@@ -629,6 +633,28 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                                   <dt>Meeting</dt>
                                   <dd>Google Meet · Primary calendar</dd>
                                 </div>
+                                {item.metadata.scheduleProposal.event.location && (
+                                  <div>
+                                    <dt>Location</dt>
+                                    <dd>{item.metadata.scheduleProposal.event.location}</dd>
+                                  </div>
+                                )}
+                                {item.metadata.scheduleProposal.event.description && (
+                                  <div>
+                                    <dt>Agenda</dt>
+                                    <dd>{item.metadata.scheduleProposal.event.description}</dd>
+                                  </div>
+                                )}
+                                {item.metadata.scheduleProposal.event.recurrence && (
+                                  <div>
+                                    <dt>Recurrence</dt>
+                                    <dd>
+                                      {item.metadata.scheduleProposal.event.recurrence === "one_off"
+                                        ? "One-off"
+                                        : "Recurring"}
+                                    </dd>
+                                  </div>
+                                )}
                                 <div>
                                   <dt>Inviting</dt>
                                   <dd>
@@ -762,21 +788,38 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                           This action was cancelled before execution.
                         </div>
                       )}
-                      {item.status === "completed" && (
-                        <div className="run-notice run-notice-success">
-                          Action completed successfully.
-                          {item.metadata?.scheduleExecution?.eventLink && (
-                            <a
-                              href={item.metadata.scheduleExecution.eventLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="run-link"
-                            >
-                              Open calendar event
-                            </a>
-                          )}
-                        </div>
-                      )}
+                      {item.status === "completed" &&
+                        item.metadata?.outcome === "no_availability" && (
+                          <div className="run-notice">
+                            No meeting was created because no verified availability matched the
+                            requested constraints. Try another time or duration.
+                          </div>
+                        )}
+                      {item.status === "completed" &&
+                        item.metadata?.outcome === "availability_unavailable" && (
+                          <div className="run-notice">
+                            Calendar availability could not be verified for one or more attendees.
+                            Ask the attendee to share availability or retry with another verified
+                            attendee.
+                          </div>
+                        )}
+                      {item.status === "completed" &&
+                        item.metadata?.outcome !== "no_availability" &&
+                        item.metadata?.outcome !== "availability_unavailable" && (
+                          <div className="run-notice run-notice-success">
+                            Action completed successfully.
+                            {item.metadata?.scheduleExecution?.eventLink && (
+                              <a
+                                href={item.metadata.scheduleExecution.eventLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="run-link"
+                              >
+                                Open calendar event
+                              </a>
+                            )}
+                          </div>
+                        )}
                     </div>
                   );
                 }

@@ -23,6 +23,9 @@ export interface SchedulingProposal {
     durationMinutes: number;
     meetingProvider: ScheduleIntent["parameters"]["options"]["meetingProvider"];
     calendarId: ScheduleIntent["parameters"]["options"]["calendarId"];
+    location?: string;
+    description?: string;
+    recurrence?: "one_off" | "recurring";
   };
   invitation: {
     attendees: string[];
@@ -90,10 +93,8 @@ export function buildSchedulingProposal(
 ): SchedulingProposal {
   const attendees = intent.parameters.attendees;
   const options = intent.parameters.options;
-  if (!attendees || attendees.length === 0) {
-    throw new SchedulingProposalError(
-      "Verified attendees are required before proposing a meeting.",
-    );
+  if (intent.parameters.attendeeStatus === "unresolved") {
+    throw new SchedulingProposalError("All attendee email addresses must be resolved first.");
   }
   if (!Array.isArray(slots) || slots.length === 0 || slots.length > 3) {
     throw new SchedulingProposalError("At least one verified availability slot is required.");
@@ -133,8 +134,11 @@ export function buildSchedulingProposal(
       durationMinutes: options.durationMinutes,
       meetingProvider: options.meetingProvider,
       calendarId: options.calendarId,
+      ...(intent.parameters.location ? { location: intent.parameters.location } : {}),
+      ...(intent.parameters.agenda ? { description: intent.parameters.agenda } : {}),
+      ...(intent.parameters.recurrence ? { recurrence: intent.parameters.recurrence } : {}),
     },
-    invitation: { attendees: [...attendees] },
+    invitation: { attendees: [...(attendees ?? [])] },
     alternatives: slots.slice(1).map((slot) => ({ ...slot })),
     ...(validatedEmail ? { email: validatedEmail } : {}),
   };

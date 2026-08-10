@@ -6,10 +6,50 @@ import {
   parseAgentToolCall,
   parseUserFacingError,
 } from "../lib/agent/contracts";
-import { parseCommand } from "../lib/agent/intents";
+import {
+  hasScheduleTimeConstraint,
+  isHelpCommand,
+  parseCommand,
+  requestsSchedulingClarification,
+} from "../lib/agent/intents";
 import { applyScheduleDefaults } from "../lib/scheduling";
 
 describe("agent contracts", () => {
+  it("recognizes help and capability questions", () => {
+    expect(isHelpCommand("what are your features?")).toBe(true);
+    expect(isHelpCommand("help")).toBe(true);
+    expect(isHelpCommand("schedule a meeting")).toBe(false);
+  });
+
+  it("recognizes typo-tolerant scheduling and clarification requests", () => {
+    expect(parseCommand("Schduele a meeting")).toMatchObject({ ok: true });
+    expect(requestsSchedulingClarification("Schedule a meeting and ask me all requirements")).toBe(
+      true,
+    );
+    expect(hasScheduleTimeConstraint("Schedule it tomorrow from 9 am to 2 pm")).toBe(true);
+  });
+
+  it("extracts scheduling details and rejects unverified attendee names", () => {
+    expect(
+      parseCommand(
+        "Schedule a meeting tomorrow 9 am to 11 am, dev will be attending the meeting that will be held at APJ and agenda is to discuss future goals and it is one off",
+      ),
+    ).toMatchObject({
+      ok: true,
+      intent: {
+        kind: "schedule",
+        parameters: {
+          attendeeStatus: "unresolved",
+          unresolvedAttendees: ["dev"],
+          location: "APJ",
+          agenda: "discuss future goals",
+          recurrence: "one_off",
+          options: { durationMinutes: 120 },
+        },
+      },
+    });
+  });
+
   it("parses supported triage and scheduling intents", () => {
     expect(parseAgentIntent({ kind: "triage", parameters: { source: "email", limit: 5 } })).toEqual(
       {
@@ -197,6 +237,13 @@ describe("agent contracts", () => {
         kind: "triage",
         parameters: { source: "email", limit: 2 },
       },
+    });
+  });
+
+  it("does not inherit scheduling for an unrelated standalone command", () => {
+    expect(parseCommand("sync", [{ role: "user", content: "schedule a meeting" }])).toMatchObject({
+      ok: false,
+      error: { code: "invalid_request" },
     });
   });
 
