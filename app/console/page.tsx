@@ -1,16 +1,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
-import LoginForm from "./login-form";
+import CommandConsole from "../components/command-console";
 
-export default async function LoginPage() {
+export default async function ConsolePage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    redirect("/console");
+  if (!user) {
+    redirect("/login");
   }
 
-  return <LoginForm />;
+  return <CommandConsole email={user.email ?? ""} />;
 }
