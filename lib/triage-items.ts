@@ -212,7 +212,10 @@ export class TriageItemService {
     return (data ?? []).map(mapRow).filter((item): item is PersistedTriageItem => Boolean(item));
   }
 
-  async reconcile(inputs: TriageInputs, candidates: readonly RankedTriageCandidate[]): Promise<void> {
+  async reconcile(
+    inputs: TriageInputs,
+    candidates: readonly RankedTriageCandidate[],
+  ): Promise<void> {
     const supabase = await this.createServerClient();
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user)

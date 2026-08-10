@@ -252,7 +252,11 @@ describe("agent contracts", () => {
   });
 
   it("extracts recurring and reminder scheduling options", () => {
-    expect(parseCommand("Schedule tomorrow at 9 am every week for 4 occurrences, remind me 15 minutes before")).toMatchObject({
+    expect(
+      parseCommand(
+        "Schedule tomorrow at 9 am every week for 4 occurrences, remind me 15 minutes before",
+      ),
+    ).toMatchObject({
       ok: true,
       intent: {
         parameters: {

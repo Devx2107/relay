@@ -413,7 +413,9 @@ export async function rankTriageInputs(
       }
       try {
         const classification = await options.classifier.classify(candidate);
-        classified[index] = classification ? applyClassification(candidate, classification) : candidate;
+        classified[index] = classification
+          ? applyClassification(candidate, classification)
+          : candidate;
       } catch {
         classified[index] = candidate;
       }

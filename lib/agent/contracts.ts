@@ -195,7 +195,11 @@ export function parseAgentIntent(value: unknown): AgentIntent {
     if (source !== undefined && source !== "email" && source !== "calendar" && source !== "all") {
       throw new ContractValidationError("triage.parameters.source is invalid");
     }
-    if (calendarAction !== undefined && calendarAction !== "cancel" && calendarAction !== "reschedule") {
+    if (
+      calendarAction !== undefined &&
+      calendarAction !== "cancel" &&
+      calendarAction !== "reschedule"
+    ) {
       throw new ContractValidationError("triage.parameters.calendarAction is invalid");
     }
     return {
@@ -327,9 +331,7 @@ export function parseAgentIntent(value: unknown): AgentIntent {
       unresolvedAttendees: unresolvedAttendees as string[] | undefined,
       ...(location !== undefined ? { location: location as string } : {}),
       ...(agenda !== undefined ? { agenda: agenda as string } : {}),
-      ...(recurrence !== undefined
-        ? { recurrence: recurrence as "one_off" | "recurring" }
-        : {}),
+      ...(recurrence !== undefined ? { recurrence: recurrence as "one_off" | "recurring" } : {}),
       ...(recurrenceRule !== undefined ? { recurrenceRule: recurrenceRule as string } : {}),
       ...(reminderMinutes !== undefined ? { reminderMinutes: reminderMinutes as number } : {}),
       options: options as unknown as ScheduleOptions,

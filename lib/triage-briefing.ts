@@ -47,11 +47,7 @@ export class TriageBriefingService {
 
     const [inputs, settingsResult] = await Promise.all([
       this.inputService.retrieve(user.id),
-      supabase
-        .from("user_settings")
-        .select("vip_contacts")
-        .eq("user_id", user.id)
-        .single(),
+      supabase.from("user_settings").select("vip_contacts").eq("user_id", user.id).single(),
     ]);
 
     const vipContacts: string[] = settingsResult.data?.vip_contacts || [];

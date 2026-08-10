@@ -187,10 +187,11 @@ function isTriageCommand(command: string, scheduling = false): boolean {
       command,
     );
   }
-  return /\b(triage|inbox|unread|priorit(?:y|ies)|what\s+needs\s+attention|upcoming\s+(?:events?|meetings?)|calendar|emails?|mail)\b/i.test(
-    command,
-  ) || /\b(?:cancel|reschedul\w*|move)\s+(?:(?:this|that|the)\s+)?(?:meeting|event)\b/i.test(
-    command,
+  return (
+    /\b(triage|inbox|unread|priorit(?:y|ies)|what\s+needs\s+attention|upcoming\s+(?:events?|meetings?)|calendar|emails?|mail)\b/i.test(
+      command,
+    ) ||
+    /\b(?:cancel|reschedul\w*|move)\s+(?:(?:this|that|the)\s+)?(?:meeting|event)\b/i.test(command)
   );
 }
 

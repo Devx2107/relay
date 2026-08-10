@@ -765,7 +765,7 @@ export class AgentLoop {
           ? "calendar.delete_event"
           : intent.kind === "triage" && intent.parameters.calendarAction === "reschedule"
             ? "calendar.modify_event"
-          : undefined;
+            : undefined;
       const cancelEvent =
         intent.kind === "triage" && intent.parameters.calendarAction === "cancel"
           ? firstCalendarEventForAction(messages)

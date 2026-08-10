@@ -622,7 +622,8 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                                     </dd>
                                   </div>
                                 )}
-                                {item.metadata.scheduleProposal.event.reminderMinutes !== undefined && (
+                                {item.metadata.scheduleProposal.event.reminderMinutes !==
+                                  undefined && (
                                   <div>
                                     <dt>Reminder</dt>
                                     <dd>

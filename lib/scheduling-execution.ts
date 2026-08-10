@@ -121,12 +121,10 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
       (typeof description !== "string" ||
         description.trim().length === 0 ||
         description.length > 2000)) ||
-    (recurrence !== undefined && recurrence !== "one_off" && recurrence !== "recurring")
-    ||
+    (recurrence !== undefined && recurrence !== "one_off" && recurrence !== "recurring") ||
     (recurrenceRule !== undefined &&
       (typeof recurrenceRule !== "string" ||
-        !/^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY)(?:;COUNT=\d{1,3})?$/.test(recurrenceRule)))
-    ||
+        !/^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY)(?:;COUNT=\d{1,3})?$/.test(recurrenceRule))) ||
     (reminderMinutes !== undefined &&
       (!Number.isInteger(reminderMinutes) || reminderMinutes < 0 || reminderMinutes > 40320))
   ) {
@@ -192,9 +190,7 @@ export function calendarCreateArgs(proposal: SchedulingProposal, requestId: stri
       end: { dateTime: proposal.event.end, timeZone: proposal.event.timeZone },
       ...(proposal.event.location ? { location: proposal.event.location } : {}),
       ...(proposal.event.description ? { description: proposal.event.description } : {}),
-      ...(proposal.event.recurrenceRule
-        ? { recurrence: [proposal.event.recurrenceRule] }
-        : {}),
+      ...(proposal.event.recurrenceRule ? { recurrence: [proposal.event.recurrenceRule] } : {}),
       ...(proposal.event.reminderMinutes !== undefined
         ? {
             reminders: {
