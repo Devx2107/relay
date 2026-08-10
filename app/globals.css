@@ -1,29 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  --ink: #17242a;
-  --muted: #6e7d80;
-  --line: rgba(23, 36, 42, 0.1);
-  --paper: #f5f7f2;
-  --card: rgba(255, 255, 255, 0.8);
-  --teal: #247a70;
-  --teal-dark: #1d615a;
-  --peach: #f4d8c7;
-  --sun: #e9b96e;
+  --ink: #e2e8f0;
+  --muted: #94a3b8;
+  --line: rgba(255, 255, 255, 0.1);
+  --paper: #000000;
+  --card: #0a0a0a;
+  --teal: #a855f7;
+  --teal-dark: #9333ea;
+  --peach: #fce7f3;
+  --sun: #d946ef;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
 html,
 body {
   margin: 0;
   min-height: 100%;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 body {
-  background:
-    radial-gradient(circle at 13% 8%, rgba(244, 216, 199, 0.72), transparent 28rem),
-    radial-gradient(circle at 92% 80%, rgba(198, 224, 208, 0.66), transparent 30rem), var(--paper);
+  background: #000000;
   color: var(--ink);
   font-family: Arial, sans-serif;
   overflow-x: hidden;
@@ -48,7 +57,7 @@ textarea:focus-visible {
   margin: 0 auto;
   max-width: 1240px;
   min-height: 100vh;
-  padding: clamp(24px, 4vw, 44px) clamp(18px, 5vw, 56px) 52px;
+  padding: clamp(100px, 10vw, 120px) clamp(18px, 5vw, 56px) 52px;
 }
 
 .console-header,
@@ -102,7 +111,7 @@ textarea:focus-visible {
 }
 
 .account-pill {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
@@ -119,8 +128,8 @@ textarea:focus-visible {
 }
 
 .status-dot {
-  background: #5caf82;
-  border: 3px solid rgba(92, 175, 130, 0.2);
+  background: #a855f7;
+  border: 3px solid rgba(168, 85, 247, 0.2);
   border-radius: 50%;
   height: 10px;
   width: 10px;
@@ -149,7 +158,7 @@ textarea:focus-visible {
 }
 
 .context-panel {
-  background: rgba(236, 227, 207, 0.55);
+  background: rgba(255, 255, 255, 0.02);
   padding: 36px;
 }
 
@@ -232,7 +241,7 @@ h2 {
 }
 
 .briefing-status-error {
-  color: #9a5f4c;
+  color: #f43f5e;
 }
 
 .briefing-status a,
@@ -271,7 +280,7 @@ h2 {
 .command-error,
 .session-banner {
   align-items: center;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--muted);
@@ -285,7 +294,7 @@ h2 {
 .source-status-error,
 .command-error,
 .session-banner {
-  color: #9a5f4c;
+  color: #f43f5e;
 }
 
 .session-banner {
@@ -299,7 +308,7 @@ h2 {
 
 .availability-state {
   align-items: center;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--muted);
@@ -310,7 +319,7 @@ h2 {
 }
 
 .availability-state-error {
-  color: #9a5f4c;
+  color: #f43f5e;
 }
 
 .briefing-items {
@@ -379,7 +388,7 @@ h2 {
 }
 
 .urgency-high {
-  background: #d2765e;
+  background: #f43f5e;
 }
 
 .urgency-medium {
@@ -387,7 +396,7 @@ h2 {
 }
 
 .urgency-low {
-  background: #83b9a3;
+  background: #a855f7;
 }
 
 .empty-briefing p {
@@ -447,7 +456,7 @@ h2 {
 
 .context-icon {
   align-items: center;
-  background: rgba(255, 255, 255, 0.56);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   color: var(--teal);
   display: flex;
@@ -457,28 +466,8 @@ h2 {
   width: 34px;
 }
 
-.composer-panel {
-  margin-top: 24px;
-  padding: 28px 32px 22px;
-}
-
-.composer-heading {
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-
-.composer-heading h2 {
-  margin: 8px 0 0;
-}
-
-.shortcut-hint,
-.composer-note {
-  color: var(--muted);
-  font-size: 12px;
-}
-
 textarea {
-  background: rgba(245, 247, 242, 0.65);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--line);
   border-radius: 16px;
   color: var(--ink);
@@ -492,41 +481,6 @@ textarea {
 
 textarea::placeholder {
   color: #9aa6a2;
-}
-
-.composer-footer {
-  justify-content: space-between;
-  padding-top: 14px;
-}
-
-.command-error {
-  justify-content: space-between;
-  margin-top: 12px;
-}
-
-button[type="submit"] {
-  align-items: center;
-  background: var(--teal);
-  border: 0;
-  border-radius: 999px;
-  color: #fff;
-  display: flex;
-  font-size: 13px;
-  gap: 8px;
-  padding: 10px 16px;
-  transition:
-    background 160ms ease,
-    transform 160ms ease;
-}
-
-button[type="submit"]:hover:not(:disabled) {
-  background: var(--teal-dark);
-  transform: translateY(-1px);
-}
-
-button[type="submit"]:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .sr-only {
@@ -565,7 +519,7 @@ button[type="submit"]:disabled {
 
 .message-assistant,
 .message-system {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   color: var(--ink);
   align-self: flex-start;
@@ -573,12 +527,12 @@ button[type="submit"]:disabled {
 }
 
 .run-card {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 16px;
   font-size: 13px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -610,7 +564,7 @@ button[type="submit"]:disabled {
 
 .run-status-failed .status-indicator {
   animation: none;
-  background: #c94a4a;
+  background: #f43f5e;
 }
 
 .run-summary {
@@ -619,8 +573,8 @@ button[type="submit"]:disabled {
 }
 
 .run-error {
-  color: #c94a4a;
-  background: rgba(201, 74, 74, 0.1);
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.1);
   padding: 10px;
   border-radius: 6px;
   margin-top: 8px;
@@ -628,7 +582,7 @@ button[type="submit"]:disabled {
 
 .connect-btn {
   display: inline-block;
-  background: #c94a4a;
+  background: #f43f5e;
   color: white;
   padding: 6px 12px;
   border-radius: 4px;
@@ -643,7 +597,7 @@ button[type="submit"]:disabled {
 }
 
 .approval-section {
-  background: rgba(245, 247, 242, 0.7);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--line);
   border-radius: 12px;
   margin-top: 16px;
@@ -671,7 +625,7 @@ button[type="submit"]:disabled {
 }
 
 .schedule-proposal {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
@@ -746,7 +700,7 @@ button[type="submit"]:disabled {
 }
 
 .reply-preview {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
@@ -770,7 +724,7 @@ button[type="submit"]:disabled {
 }
 
 .reply-editor textarea {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.03);
   min-height: 120px;
 }
 
