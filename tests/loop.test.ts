@@ -36,7 +36,7 @@ describe("AgentLoop", () => {
     );
   });
 
-  it("plans, reads, proposes and requests approval", async () => {
+  it("plans and reads triage without proposing a write action", async () => {
     const onProgress = vi.fn();
     const onComplete = vi.fn();
 
@@ -61,16 +61,7 @@ describe("AgentLoop", () => {
         });
       }
 
-      return Promise.resolve({
-        toolCalls: [
-          {
-            id: "call-2",
-            type: "function",
-            function: { name: "gmail.send", arguments: '{"threadId":"123","body":"ok"}' },
-          },
-        ],
-        usedFallback: false,
-      });
+      return Promise.resolve({ text: "I found the requested emails.", usedFallback: false });
     });
 
     const groq = { complete: groqComplete } as unknown as GroqAdapter;
@@ -99,9 +90,7 @@ describe("AgentLoop", () => {
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "received" }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "planning" }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "reading" }));
-    expect(onProgress).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "waiting_for_approval" }),
-    );
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ status: "completed" }));
 
     expect(integration.executeTool).toHaveBeenCalledWith(
       "tenant-2",
@@ -118,11 +107,17 @@ describe("AgentLoop", () => {
 
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "waiting_for_approval",
-        metadata: expect.objectContaining({
-          proposedAction: "gmail.send",
-        }),
+        status: "completed",
+        metadata: expect.objectContaining({ finalSummary: "I found the requested emails." }),
       }),
+    );
+    expect(groqComplete).toHaveBeenCalledTimes(2);
+    const summaryMessages = groqComplete.mock.calls[1][0];
+    expect(summaryMessages).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: "tool" })]),
+    );
+    expect(summaryMessages).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ tool_calls: expect.anything() })]),
     );
   });
 

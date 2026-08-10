@@ -1,28 +1,26 @@
 # Current Task
 
-## Current Task: AGT-010 reliable planner tool responses
+## Current Task: AGT-012 valid Groq summary requests
 
 ## Goal
 
-Fix the shared agent loop so planner responses produce valid tool calls and gracefully handle planner failures.
+Ensure the read-only triage summary request is valid when the planner has already used Gmail or Calendar tools.
 
 ## Context
 
-Users report that plan responses fail frequently and do not return useful responses. The loop currently generates an overly broad tool schema and trusts planner tool names during the read phase.
+The read-only triage path now asks Groq for a final summary after tool calls. It currently forwards assistant `tool_calls` and `tool` messages while sending no tools, which Groq rejects with `Tool choice is none, but model called a tool`.
 
 ## Requirements
 
-- Emit accurate JSON-schema types and required fields for planner tools.
-- Execute only available read tools during planning.
-- Convert unexpected planner failures into bounded failed runs.
-- Preserve the server-side registry and approval boundary.
+- Form a valid summary request after read-tool execution.
+- Preserve the read-only triage boundary and explicit approval-gated triage actions.
+- Add regression coverage preventing tool-call messages in no-tool summary requests.
 
 ## Acceptance Criteria
 
-- Valid calendar availability and Gmail read calls can be represented by the planner schema.
-- Unknown/write planner calls cannot execute during the read phase.
-- An unexpected planner exception produces a user-facing failed run rather than an unhandled request failure.
-- Existing triage, scheduling, approval, and verification behavior remains intact.
+- Summary requests contain no assistant `tool_calls` or `tool` role when sent without tools.
+- A triage command completes with a read summary or bounded fallback.
+- Explicit triage action proposals remain approval-gated and executable through their existing API.
 
 ## Relevant Areas
 
@@ -38,17 +36,17 @@ Users report that plan responses fail frequently and do not return useful respon
 
 ## Plan
 
-1. Inspect the existing loop, adapter, registry, and tests.
-2. Correct planner tool schemas and read-phase validation.
+1. Inspect the summary request and Groq message contract.
+2. Normalize the tool transcript into ordinary summary context.
 3. Add focused regression coverage.
 4. Run checks and review security and scope.
 
 ## Verification
 
-- [x] Formatting (changed files; pre-existing `tasks/BACKLOG.md` remains unformatted)
+- [x] Formatting (changed files; pre-existing `tasks/BACKLOG.md` and `lib/agent/groq.ts` remain unformatted)
 - [x] Lint
 - [x] Typecheck
-- [x] Tests
+- [x] Focused tests (`tests/loop.test.ts`, `tests/triage-actions.test.ts`)
 - [x] Build
 - [x] Security and scope review
 

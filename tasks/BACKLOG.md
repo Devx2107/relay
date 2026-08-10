@@ -85,12 +85,12 @@ Priorities reflect the 12-hour hackathon constraint. Work should follow the depe
 
 ## P1 — Polish
 
-| ID      | Task                                                | Status  | Depends on |
-| ------- | --------------------------------------------------- | ------- | ---------- |
-| POL-001 | Improve responsive layout and visual polish         | REVIEW  | UI-005     |
-| POL-002 | Add keyboard-first interactions                     | REVIEW  | UI-005     |
-| POL-003 | Add restrained loading/transition animation         | REVIEW  | UI-005     |
-| POL-004 | Improve daily briefing copy and triage explanations | REVIEW  | TRI-004    |
+| ID      | Task                                                | Status | Depends on |
+| ------- | --------------------------------------------------- | ------ | ---------- |
+| POL-001 | Improve responsive layout and visual polish         | REVIEW | UI-005     |
+| POL-002 | Add keyboard-first interactions                     | REVIEW | UI-005     |
+| POL-003 | Add restrained loading/transition animation         | REVIEW | UI-005     |
+| POL-004 | Improve daily briefing copy and triage explanations | REVIEW | TRI-004    |
 
 ## P2 — Stretch
 

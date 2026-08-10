@@ -31,7 +31,7 @@ describe("GroqAdapter", () => {
     expect(init?.headers).toMatchObject({ Authorization: "Bearer test-key" });
     expect(JSON.parse(String(init?.body))).toMatchObject({
       model: "test-model",
-      max_completion_tokens: 256,
+      max_completion_tokens: 1024,
       n: 1,
     });
   });

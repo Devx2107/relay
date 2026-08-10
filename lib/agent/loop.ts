@@ -282,6 +282,85 @@ export class AgentLoop {
       return;
     }
 
+    // Triage commands are read-only. Consequential triage actions are created
+    // through the dedicated triage-action service, where the item owner,
+    // source, status, and arguments are revalidated before approval.
+    if (intent.kind === "triage") {
+      let summary = planResponse.text;
+      if (!summary) {
+        try {
+          // A no-tool completion cannot contain an assistant tool call or a
+          // tool-role message. Convert the read transcript into ordinary
+          // bounded context before asking Groq for the summary.
+          const summaryMessages: GroqMessage[] = messages.flatMap((message) => {
+            if (message.role === "tool") {
+              return [
+                {
+                  role: "user" as const,
+                  content: `Read result from ${message.name ?? "the requested source"}: ${message.content ?? ""}`,
+                },
+              ];
+            }
+            if (message.role === "assistant" && message.tool_calls) {
+              return [
+                {
+                  role: "assistant" as const,
+                  content: message.content ?? "I reviewed the requested information.",
+                },
+              ];
+            }
+            return [message];
+          });
+          const summaryResponse = await this.options.groq.complete(
+            [
+              ...summaryMessages,
+              {
+                role: "user",
+                content:
+                  "Summarize the read results for the user. Do not propose or execute any write action.",
+              },
+            ],
+            "I reviewed the requested information.",
+            [],
+          );
+          if (summaryResponse.error) {
+            this.failRun(summaryResponse.error, "Failed during summary phase.", timestamp());
+            return;
+          }
+          summary = summaryResponse.text;
+        } catch {
+          this.failRun(
+            {
+              code: "integration_unavailable",
+              message: "The language assistant could not summarize this request.",
+              retryable: true,
+              action: "retry",
+            },
+            "Failed during summary phase.",
+            timestamp(),
+          );
+          return;
+        }
+      }
+
+      this.options.onProgress({
+        runId: this.options.runId,
+        status: "completed",
+        message: "Read-only triage completed.",
+        createdAt: timestamp(),
+      });
+      this.options.onComplete({
+        id: this.options.runId,
+        conversationId: this.options.conversationId,
+        status: "completed",
+        intent,
+        createdAt: timestamp(),
+        updatedAt: timestamp(),
+        metadata: { finalSummary: summary || "I reviewed the requested information." },
+      });
+      return;
+    }
+
     this.options.onProgress({
       runId: this.options.runId,
       status: "planning",

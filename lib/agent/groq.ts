@@ -150,10 +150,14 @@ export class GroqAdapter {
           messages,
           max_completion_tokens: this.config.maxCompletionTokens,
           n: 1,
-          ...(tools && tools.length > 0 ? { 
-            tools, tool_choice:forceToolName
+          ...(tools && tools.length > 0
+            ? {
+                tools,
+                tool_choice: forceToolName
                   ? { type: "function", function: { name: forceToolName } }
-                  : "auto", } : {}),
+                  : "auto",
+              }
+            : {}),
         }),
         signal: controller.signal,
       });
@@ -174,7 +178,10 @@ export class GroqAdapter {
       const payload = (await response.json()) as GroqResponse;
       const message = payload.choices?.[0]?.message;
       if (!message || (typeof message.content !== "string" && !message.tool_calls)) {
-        console.error("Groq returned an unusable response payload:", JSON.stringify(payload).slice(0, 1000));
+        console.error(
+          "Groq returned an unusable response payload:",
+          JSON.stringify(payload).slice(0, 1000),
+        );
         return fallbackResult(fallback, {
           code: "integration_unavailable",
           message: "The language assistant returned an unusable response.",
