@@ -66,13 +66,14 @@ export function Navbar({ user }: NavbarProps) {
           <div className="h-6 w-px bg-white/20 mx-2" />
 
           {user ? (
-            <div className="flex items-center space-x-3 bg-white/10 px-4 py-1.5 rounded-full border border-white/10">
-              {user.user_metadata?.avatar_url ? (
+            <div className="flex items-center space-x-2 bg-white/10 p-2 rounded-full border border-white/10">
+              {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={user.user_metadata.avatar_url}
+                  src={user.user_metadata.avatar_url || user.user_metadata.picture}
                   alt="Avatar"
                   className="w-6 h-6 rounded-full"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-xs text-white font-bold">
