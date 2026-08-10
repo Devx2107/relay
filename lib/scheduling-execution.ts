@@ -126,7 +126,10 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
       (typeof recurrenceRule !== "string" ||
         !/^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY)(?:;COUNT=\d{1,3})?$/.test(recurrenceRule))) ||
     (reminderMinutes !== undefined &&
-      (!Number.isInteger(reminderMinutes) || reminderMinutes < 0 || reminderMinutes > 40320))
+      (typeof reminderMinutes !== "number" ||
+        !Number.isInteger(reminderMinutes) ||
+        reminderMinutes < 0 ||
+        reminderMinutes > 40320))
   ) {
     throw new SchedulingExecutionError("The scheduling proposal has invalid event details.");
   }
@@ -173,7 +176,7 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
       ...(description ? { description: description.trim() } : {}),
       ...(recurrence ? { recurrence } : {}),
       ...(recurrenceRule ? { recurrenceRule } : {}),
-      ...(reminderMinutes !== undefined ? { reminderMinutes } : {}),
+      ...(reminderMinutes !== undefined ? { reminderMinutes: reminderMinutes as number } : {}),
     },
     invitation: { attendees: [...invitation.attendees] },
     alternatives,

@@ -141,8 +141,9 @@ function extractScheduleDetails(input: string) {
   const recurrenceMatch = input.match(
     /\bevery\s+(day|week|month)(?:\s+for\s+(\d{1,3})\s+(?:times?|occurrences?))?\b/i,
   );
+  const freqMap: Record<string, string> = { day: "DAILY", week: "WEEKLY", month: "MONTHLY" };
   const recurrenceRule = recurrenceMatch
-    ? `RRULE:FREQ=${recurrenceMatch[1].toUpperCase()}${recurrenceMatch[2] ? `;COUNT=${recurrenceMatch[2]}` : ""}`
+    ? `RRULE:FREQ=${freqMap[recurrenceMatch[1].toLowerCase()]}${recurrenceMatch[2] ? `;COUNT=${recurrenceMatch[2]}` : ""}`
     : undefined;
   const reminderMinutes = Number(
     input.match(/\b(?:remind|reminder)\s+(?:me\s+)?(\d{1,5})\s+minutes?\s+before\b/i)?.[1],

@@ -68,6 +68,7 @@ export function Navbar({ user }: NavbarProps) {
           {user ? (
             <div className="flex items-center space-x-3 bg-white/10 px-4 py-1.5 rounded-full border border-white/10">
               {user.user_metadata?.avatar_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={user.user_metadata.avatar_url}
                   alt="Avatar"

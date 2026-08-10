@@ -254,7 +254,9 @@ export function parseAgentIntent(value: unknown): AgentIntent {
   }
   if (
     reminderMinutes !== undefined &&
-    (!Number.isInteger(reminderMinutes) || reminderMinutes < 0 || reminderMinutes > 40320)
+    (!Number.isInteger(reminderMinutes) ||
+      (reminderMinutes as number) < 0 ||
+      (reminderMinutes as number) > 40320)
   ) {
     throw new ContractValidationError("schedule.parameters.reminderMinutes is invalid");
   }

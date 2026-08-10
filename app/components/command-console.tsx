@@ -106,6 +106,7 @@ function formatScheduleTime(value: string, timeZone: string): string {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function CommandConsole({ email }: CommandConsoleProps) {
   const [command, setCommand] = useState("");
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null);
