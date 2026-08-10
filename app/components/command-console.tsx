@@ -50,6 +50,10 @@ interface Run {
     draftBody?: string;
     scheduleProposal?: ScheduleProposal;
     scheduleExecution?: { eventId: string; eventLink?: string; emailMessageId?: string };
+    calendarAction?: "cancel";
+    calendarEvents?: CalendarEventCandidate[];
+    selectedCalendarEventId?: string;
+    proposedAction?: string;
   };
   error?: { message?: string; action?: string; plugin?: string } | string;
   created_at: string;
@@ -77,11 +81,23 @@ interface ScheduleProposal {
   email?: { to: string[]; subject: string; body: string };
 }
 
-type MutationState = { runId: string; action: "approve" | "cancel" | "edit" } | null;
+interface CalendarEventCandidate {
+  id: string;
+  calendarId: string;
+  topic: string;
+  start: string;
+  end: string;
+  location: string;
+  attendees: string[];
+  description: string;
+}
+
+type MutationState = { runId: string; action: "approve" | "cancel" | "edit" | "select" } | null;
 type BriefingState = "loading" | "ready" | "error" | "session_expired";
 
 function actionLabel(run: Run): string {
   if (run.metadata?.scheduleProposal) return "Create meeting and invitation";
+  if (run.metadata?.proposedAction === "calendar.delete_event") return "Cancel selected meeting";
   if (run.metadata?.action === "reply") return "Send email reply";
   if (run.metadata?.action === "ignore") return "Archive or dismiss item";
   if (run.metadata?.action === "snooze") return "Snooze item";
@@ -130,6 +146,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
   const [editingRunId, setEditingRunId] = useState<string | null>(null);
   const [draftBody, setDraftBody] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [selectedCalendarEvents, setSelectedCalendarEvents] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (hasLoadedBriefing.current) return;
@@ -298,6 +315,29 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
       if (!response.ok) throw new Error("This approval is no longer available.");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "The action could not be cancelled.");
+    } finally {
+      setMutation(null);
+    }
+  }
+
+  async function handleCalendarEventSelection(runId: string, eventId: string) {
+    if (sessionExpired || !eventId) return;
+    setActionError(null);
+    setMutation({ runId, action: "select" });
+    try {
+      const response = await fetch(`/api/runs/${runId}/select-event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      if (!response.ok) throw new Error("The meeting selection is no longer available.");
+      setHistoryRetryKey((value) => value + 1);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "The meeting could not be selected for cancellation.",
+      );
     } finally {
       setMutation(null);
     }
@@ -542,6 +582,79 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                           </ReactMarkdown>
                         </div>
                       )}
+                      {item.status === "completed" &&
+                        item.metadata?.calendarAction === "cancel" &&
+                        Boolean(item.metadata.calendarEvents?.length) &&
+                        (() => {
+                          const events = item.metadata?.calendarEvents ?? [];
+                          const selectedEventId = selectedCalendarEvents[item.id] ?? events[0].id;
+                          const selectedEvent =
+                            events.find((event) => event.id === selectedEventId) ?? events[0];
+                          return (
+                            <div className="approval-section calendar-cancellation-selector">
+                              <div className="approval-heading">
+                                <span className="approval-kicker">Choose a meeting</span>
+                                <strong>Prepare cancellation</strong>
+                              </div>
+                              <label htmlFor={`calendar-event-${item.id}`}>Upcoming meeting</label>
+                              <select
+                                id={`calendar-event-${item.id}`}
+                                value={selectedEventId}
+                                onChange={(event) =>
+                                  setSelectedCalendarEvents((current) => ({
+                                    ...current,
+                                    [item.id]: event.target.value,
+                                  }))
+                                }
+                                disabled={mutation !== null || sessionExpired}
+                              >
+                                {events.map((event) => (
+                                  <option key={event.id} value={event.id}>
+                                    {event.start} — {event.topic}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="schedule-proposal" aria-live="polite">
+                                <dl className="schedule-proposal-details">
+                                  <div>
+                                    <dt>When</dt>
+                                    <dd>
+                                      {selectedEvent.start} — {selectedEvent.end}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Where</dt>
+                                    <dd>{selectedEvent.location}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Invited</dt>
+                                    <dd>
+                                      {selectedEvent.attendees.join(", ") || "No invitees listed"}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Description</dt>
+                                    <dd>{selectedEvent.description}</dd>
+                                  </div>
+                                </dl>
+                              </div>
+                              <div className="approval-actions">
+                                <button
+                                  type="button"
+                                  className="approve-btn"
+                                  onClick={() =>
+                                    void handleCalendarEventSelection(item.id, selectedEventId)
+                                  }
+                                  disabled={mutation !== null || sessionExpired}
+                                >
+                                  {mutation?.runId === item.id && mutation.action === "select"
+                                    ? "Preparing…"
+                                    : "Prepare cancellation"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       {item.error && (
                         <div className="run-error">
                           <div>
@@ -783,7 +896,8 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                         )}
                       {item.status === "completed" &&
                         item.metadata?.outcome !== "no_availability" &&
-                        item.metadata?.outcome !== "availability_unavailable" && (
+                        item.metadata?.outcome !== "availability_unavailable" &&
+                        item.metadata?.calendarAction !== "cancel" && (
                           <div className="run-notice run-notice-success">
                             Action completed successfully.
                             {item.metadata?.scheduleExecution?.eventLink && (

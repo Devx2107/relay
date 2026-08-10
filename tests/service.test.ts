@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { AgentService } from "../lib/agent/service";
+import { AgentService, createRunPersistenceQueue } from "../lib/agent/service";
 
 // We need to mock createClient from supabase
 const mockSupabase = {
@@ -56,6 +56,31 @@ describe("AgentService", () => {
     };
 
     mockSupabase.from.mockReturnValue(queryBuilder);
+  });
+
+  it("serializes progress persistence before final run metadata", async () => {
+    const queue = createRunPersistenceQueue();
+    const order: string[] = [];
+    let releaseFirst!: () => void;
+    const firstFinished = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const first = queue.enqueue(async () => {
+      order.push("progress-start");
+      await firstFinished;
+      order.push("progress-finished");
+    });
+    const final = queue.enqueue(async () => {
+      order.push("final-metadata");
+    });
+
+    await Promise.resolve();
+    expect(order).toEqual(["progress-start"]);
+    releaseFirst();
+    await Promise.all([first, final]);
+
+    expect(order).toEqual(["progress-start", "progress-finished", "final-metadata"]);
   });
 
   it("starts a run and interacts with supabase and loop", async () => {

@@ -8,6 +8,24 @@ import { TOOL_DEFINITIONS, ToolRegistry } from "./tools";
 import { isValidTimeZone } from "./contracts";
 import { executeSchedulingProposal, parseStoredSchedulingProposal } from "../scheduling-execution";
 
+export function createRunPersistenceQueue() {
+  let pending: Promise<void> = Promise.resolve();
+
+  return {
+    enqueue(task: () => Promise<void>) {
+      pending = pending.then(task);
+      return pending;
+    },
+    flush() {
+      return pending;
+    },
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export interface AgentServiceOptions {
   registryFactory?: (integration: CorsairIntegrationService) => ToolRegistry;
   afterApproved?: (args: {
@@ -103,6 +121,7 @@ export class AgentService {
         });
 
     const events: AgentProgressEvent[] = [];
+    const persistence = createRunPersistenceQueue();
 
     const loop = new AgentLoop({
       runId: run.id,
@@ -117,16 +136,19 @@ export class AgentService {
       accountEmail: scheduleContext.accountEmail,
       onProgress: async (event) => {
         events.push(event);
-        await supabase
-          .from("agent_runs")
-          .update({
-            status: event.status,
-            metadata: { ...run.metadata, progressEvents: events },
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", run.id);
+        await persistence.enqueue(async () => {
+          await supabase
+            .from("agent_runs")
+            .update({
+              status: event.status,
+              metadata: { ...run.metadata, progressEvents: events },
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", run.id);
+        });
       },
       onComplete: async (completedRun) => {
+        await persistence.flush();
         await supabase
           .from("agent_runs")
           .update({
@@ -250,6 +272,7 @@ export class AgentService {
     const events: AgentProgressEvent[] = metadata.progressEvents
       ? (metadata.progressEvents as AgentProgressEvent[])
       : [];
+    const persistence = createRunPersistenceQueue();
 
     const loop = new AgentLoop({
       runId: run.id,
@@ -259,16 +282,19 @@ export class AgentService {
       registry,
       onProgress: async (event) => {
         events.push(event);
-        await supabase
-          .from("agent_runs")
-          .update({
-            status: event.status,
-            metadata: { ...metadata, progressEvents: events },
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", run.id);
+        await persistence.enqueue(async () => {
+          await supabase
+            .from("agent_runs")
+            .update({
+              status: event.status,
+              metadata: { ...metadata, progressEvents: events },
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", run.id);
+        });
       },
       onComplete: async (completedRun) => {
+        await persistence.flush();
         await supabase
           .from("agent_runs")
           .update({
@@ -392,6 +418,54 @@ export class AgentService {
       .single();
 
     if (updateError || !updatedRun) throw new Error("The approval could not be cancelled.");
+    return this.mapToAgentRun(updatedRun);
+  }
+
+  async prepareCalendarCancellation(runId: string, eventId: string): Promise<AgentRun> {
+    const supabase = await createClient();
+    const { data: run, error } = await supabase
+      .from("agent_runs")
+      .select()
+      .eq("id", runId)
+      .single();
+    if (error || !run || run.status !== "completed") {
+      throw new Error("The meeting selection is no longer available.");
+    }
+
+    const metadata = isRecord(run.metadata) ? run.metadata : undefined;
+    const events = Array.isArray(metadata?.calendarEvents) ? metadata.calendarEvents : [];
+    const event = events.find(
+      (candidate: unknown): candidate is Record<string, unknown> =>
+        isRecord(candidate) && candidate.id === eventId && typeof candidate.calendarId === "string",
+    );
+    if (!event || metadata?.calendarAction !== "cancel") {
+      throw new Error("That meeting is no longer available to cancel.");
+    }
+
+    const { data: updatedRun, error: updateError } = await supabase
+      .from("agent_runs")
+      .update({
+        status: "waiting_for_approval",
+        metadata: {
+          ...metadata,
+          selectedCalendarEventId: eventId,
+          proposedAction: "calendar.delete_event",
+          proposedArgs: JSON.stringify({
+            calendarId: event.calendarId,
+            id: eventId,
+            sendUpdates: "all",
+          }),
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", runId)
+      .eq("status", "completed")
+      .select()
+      .single();
+
+    if (updateError || !updatedRun)
+      throw new Error("The meeting selection is no longer available.");
     return this.mapToAgentRun(updatedRun);
   }
 

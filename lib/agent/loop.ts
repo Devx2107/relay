@@ -80,54 +80,176 @@ function availabilityPayloadDiagnostics(value: unknown) {
   };
 }
 
-function firstCalendarEventForAction(
-  messages: readonly GroqMessage[],
-): { calendarId: string; id: string } | undefined {
-  const findEvent = (value: unknown): Record<string, unknown> | undefined => {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        const event = findEvent(item);
-        if (event) return event;
-      }
-      return undefined;
-    }
-    if (!isRecord(value)) return undefined;
-    if (
-      typeof value.id === "string" &&
-      value.id.length > 0 &&
-      (isRecord(value.start) || isRecord(value.end) || typeof value.summary === "string")
-    ) {
-      return value;
-    }
-    for (const key of ["items", "events", "data", "result"]) {
-      const event = findEvent(value[key]);
-      if (event) return event;
-    }
-    return undefined;
-  };
+export interface CalendarEventCandidate {
+  id: string;
+  calendarId: string;
+  topic: string;
+  start: string;
+  end: string;
+  location: string;
+  attendees: string[];
+  description: string;
+}
 
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (
-      message.role !== "tool" ||
-      (message.name !== "calendar.get_upcoming_events" && message.name !== "calendar.get_event")
-    ) {
-      continue;
-    }
+function text(value: unknown, fallback = "Not specified"): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function tableValue(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|");
+}
+
+function collectionRecords(value: unknown, keys: readonly string[]): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value.filter(isRecord);
+  if (!isRecord(value)) return [];
+  for (const key of keys) {
+    if (Array.isArray(value[key])) return value[key].filter(isRecord);
+  }
+  for (const key of ["data", "result"]) {
+    const records = collectionRecords(value[key], keys);
+    if (records.length > 0) return records;
+  }
+  return [];
+}
+
+function toolRecords(
+  messages: readonly GroqMessage[],
+  toolNames: readonly string[],
+  keys: readonly string[],
+): Record<string, unknown>[] {
+  const records: Record<string, unknown>[] = [];
+  for (const message of messages) {
+    if (message.role !== "tool" || !message.name || !toolNames.includes(message.name)) continue;
     try {
-      const parsed = JSON.parse(message.content ?? "");
-      const event = findEvent(parsed);
-      if (event) {
-        return {
-          calendarId: typeof event.calendarId === "string" ? event.calendarId : "primary",
-          id: event.id as string,
-        };
-      }
+      records.push(...collectionRecords(JSON.parse(message.content ?? ""), keys));
     } catch {
-      // Continue looking for a usable calendar read result.
+      // Invalid provider payloads are handled by the existing integration boundary.
     }
   }
-  return undefined;
+  return records;
+}
+
+function headerValue(value: unknown, name: string): string | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const header = value.find(
+    (item) => isRecord(item) && typeof item.name === "string" && item.name.toLowerCase() === name,
+  );
+  return header && isRecord(header) ? text(header.value, "") : undefined;
+}
+
+function compactSubject(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const subject = value
+    .replace(/\s+/g, " ")
+    .split(/\s+(?:View workflow run|Status|Job Annotations|Annotations)\b/i)[0]
+    .trim();
+  return subject.length > 120 ? `${subject.slice(0, 117).trimEnd()}…` : subject;
+}
+
+function emailSubject(email: Record<string, unknown>): string {
+  const messages = Array.isArray(email.messages) ? email.messages.filter(isRecord) : [];
+  const nestedSubject = messages
+    .map((message) =>
+      message.subject ??
+      headerValue(isRecord(message.payload) ? message.payload.headers : undefined, "subject"),
+    )
+    .find((subject) => typeof subject === "string" && subject.trim());
+  return (
+    compactSubject(
+      email.subject ??
+        headerValue(isRecord(email.payload) ? email.payload.headers : undefined, "subject") ??
+        nestedSubject,
+    ) ?? compactSubject(email.snippet ?? email.summary ?? email.body ?? email.text) ?? "No subject"
+  );
+}
+
+function formatEmailResults(messages: readonly GroqMessage[]): string | undefined {
+  const emails = toolRecords(
+    messages,
+    ["gmail.search_threads", "gmail.get_thread"],
+    ["threads", "messages", "items"],
+  );
+  if (emails.length === 0) return undefined;
+
+  const rows = emails.slice(0, 20).map((email, index) => {
+    const preview = text(
+      email.snippet ?? email.summary ?? email.body ?? email.text,
+      "No preview available.",
+    );
+    return `| ${index + 1} | ${tableValue(emailSubject(email))} | ${tableValue(preview)} |`;
+  });
+  return ["## Email triage", "", "| # | Subject | Summary |", "| --- | --- | --- |", ...rows].join(
+    "\n",
+  );
+}
+
+function calendarEventCandidates(messages: readonly GroqMessage[]): CalendarEventCandidate[] {
+  const events = toolRecords(
+    messages,
+    ["calendar.get_upcoming_events", "calendar.get_event"],
+    ["items", "events"],
+  );
+  const seen = new Set<string>();
+  return events.flatMap((event) => {
+    const id = text(event.id, "");
+    if (!id || seen.has(id)) return [];
+    seen.add(id);
+    const start = isRecord(event.start)
+      ? text(event.start.dateTime ?? event.start.date)
+      : "Not specified";
+    const end = isRecord(event.end) ? text(event.end.dateTime ?? event.end.date) : "Not specified";
+    const attendees = Array.isArray(event.attendees)
+      ? event.attendees
+          .filter(isRecord)
+          .map((attendee) => text(attendee.email ?? attendee.displayName, ""))
+          .filter(Boolean)
+      : [];
+    return [
+      {
+        id,
+        calendarId: text(event.calendarId, "primary"),
+        topic: text(event.summary, "Untitled meeting"),
+        start,
+        end,
+        location: text(event.location),
+        attendees,
+        description: text(event.description),
+      },
+    ];
+  });
+}
+
+function formatCalendarResults(events: readonly CalendarEventCandidate[]): string | undefined {
+  if (events.length === 0) return undefined;
+  return [
+    "## Upcoming meetings",
+    "",
+    ...events
+      .slice(0, 20)
+      .flatMap((event, index) => [
+        `### ${index + 1}. ${event.topic}`,
+        "",
+        "| Field | Details |",
+        "| --- | --- |",
+        `| When | ${tableValue(`${event.start} to ${event.end}`)} |`,
+        `| Where | ${tableValue(event.location)} |`,
+        `| Invited | ${tableValue(event.attendees.join(", ") || "No invitees listed")} |`,
+        `| Topic | ${tableValue(event.topic)} |`,
+        `| Description | ${tableValue(event.description)} |`,
+        "",
+      ]),
+  ].join("\n");
+}
+
+function formattedTriageSummary(
+  source: "email" | "calendar" | "all" | undefined,
+  messages: readonly GroqMessage[],
+): string | undefined {
+  const sections = [
+    ...(source === "calendar" ? [] : [formatEmailResults(messages)]),
+    ...(source === "email" ? [] : [formatCalendarResults(calendarEventCandidates(messages))]),
+  ].filter((section): section is string => Boolean(section));
+  return sections.length > 0 ? sections.join("\n\n") : undefined;
 }
 
 export interface AgentLoopOptions {
@@ -658,11 +780,37 @@ export class AgentLoop {
       return;
     }
 
+    if (intent.kind === "triage" && intent.parameters.calendarAction === "cancel") {
+      const calendarEvents = calendarEventCandidates(messages);
+      const summary = formatCalendarResults(calendarEvents);
+      await this.options.onProgress({
+        runId: this.options.runId,
+        status: "completed",
+        message: "Choose a meeting to prepare its cancellation.",
+        createdAt: timestamp(),
+      });
+      await this.options.onComplete({
+        id: this.options.runId,
+        conversationId: this.options.conversationId,
+        status: "completed",
+        intent,
+        createdAt: timestamp(),
+        updatedAt: timestamp(),
+        metadata: {
+          finalSummary:
+            summary ?? "No upcoming meetings were found. There is nothing available to cancel.",
+          calendarAction: "cancel",
+          calendarEvents,
+        },
+      });
+      return;
+    }
+
     // Triage commands are read-only. Consequential triage actions are created
     // through the dedicated triage-action service, where the item owner,
     // source, status, and arguments are revalidated before approval.
     if (intent.kind === "triage" && !intent.parameters.calendarAction) {
-      let summary = planResponse.text;
+      let summary = formattedTriageSummary(intent.parameters.source, messages) ?? planResponse.text;
       if (!summary) {
         try {
           // A no-tool completion cannot contain an assistant tool call or a
@@ -766,35 +914,12 @@ export class AgentLoop {
           : intent.kind === "triage" && intent.parameters.calendarAction === "reschedule"
             ? "calendar.modify_event"
             : undefined;
-      const cancelEvent =
-        intent.kind === "triage" && intent.parameters.calendarAction === "cancel"
-          ? firstCalendarEventForAction(messages)
-          : undefined;
-      proposeResponse = cancelEvent
-        ? {
-            text: "",
-            usedFallback: false,
-            toolCalls: [
-              {
-                id: this.options.runId + ":calendar-delete",
-                type: "function" as const,
-                function: {
-                  name: "calendar.delete_event",
-                  arguments: JSON.stringify({
-                    calendarId: cancelEvent.calendarId,
-                    id: cancelEvent.id,
-                    sendUpdates: "all",
-                  }),
-                },
-              },
-            ],
-          }
-        : await this.options.groq.complete(
-            messages,
-            "I cannot propose an action at this time.",
-            writeTools,
-            forcedWriteTool,
-          );
+      proposeResponse = await this.options.groq.complete(
+        messages,
+        "I cannot propose an action at this time.",
+        writeTools,
+        forcedWriteTool,
+      );
     } catch {
       this.failRun(
         {

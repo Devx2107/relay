@@ -173,6 +173,98 @@ describe("AgentLoop", () => {
     );
   });
 
+  it("uses the standard meeting template for calendar reads", async () => {
+    const onComplete = vi.fn();
+    const complete = vi.fn().mockResolvedValue({
+      toolCalls: [
+        {
+          id: "calendar-read",
+          type: "function",
+          function: { name: "calendar.get_upcoming_events", arguments: '{"calendarId":"primary"}' },
+        },
+      ],
+    });
+    const integration = {
+      executeTool: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          items: [
+            {
+              id: "event-1",
+              summary: "Team sync",
+              start: { dateTime: "2026-08-11T09:00:00.000Z" },
+              end: { dateTime: "2026-08-11T09:30:00.000Z" },
+              location: "Meeting room A",
+              attendees: [{ email: "person@example.com" }],
+              description: "Weekly product update",
+            },
+          ],
+        },
+      }),
+    } as unknown as IntegrationService;
+
+    await new AgentLoop({
+      runId: "calendar-template-run",
+      tenantId: "tenant-1",
+      conversationId: "conv-1",
+      groq: { complete } as unknown as GroqAdapter,
+      registry: new ToolRegistry(integration),
+      onProgress: vi.fn(),
+      onComplete,
+    }).execute("Show my upcoming meetings");
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        metadata: expect.objectContaining({
+          finalSummary: expect.stringContaining("| Description | Weekly product update |"),
+        }),
+      }),
+    );
+  });
+
+  it("requires a meeting selection before proposing calendar cancellation", async () => {
+    const onComplete = vi.fn();
+    const integration = {
+      executeTool: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          items: [
+            {
+              id: "event-1",
+              summary: "Team sync",
+              start: { dateTime: "2026-08-11T09:00:00.000Z" },
+              end: { dateTime: "2026-08-11T09:30:00.000Z" },
+              description: "Weekly product update",
+            },
+          ],
+        },
+      }),
+    } as unknown as IntegrationService;
+
+    await new AgentLoop({
+      runId: "calendar-cancel-selection-run",
+      tenantId: "tenant-1",
+      conversationId: "conv-1",
+      groq: { complete: vi.fn() } as unknown as GroqAdapter,
+      registry: new ToolRegistry(integration),
+      onProgress: vi.fn(),
+      onComplete,
+    }).execute("Cancel this meeting");
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        metadata: expect.objectContaining({
+          calendarAction: "cancel",
+          calendarEvents: [
+            expect.objectContaining({ id: "event-1", description: "Weekly product update" }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it("does not execute a write tool returned during planning", async () => {
     const onComplete = vi.fn();
     const complete = vi
