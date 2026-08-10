@@ -180,8 +180,21 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditingControl =
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "SELECT" ||
+        target?.tagName === "TEXTAREA";
+
       if (e.key === "Escape" && isBriefingOpen) {
         setIsBriefingOpen(false);
+        return;
+      }
+
+      if (!isEditingControl && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setIsBriefingOpen((prev) => !prev);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -415,12 +428,48 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
         </div>
       )}
 
+      {/* Help Bubble */}
+      <div className="fixed top-4 right-4 z-50 group">
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors cursor-help"
+          aria-label="Keyboard shortcuts"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-4 h-4"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+          </svg>
+        </button>
+        <div className="absolute top-full right-0 mt-2 w-56 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50">
+          <div className="rounded-xl border border-white/10 bg-[#1e1e1e] backdrop-blur-md p-4 shadow-2xl text-sm text-white/90">
+            <h3 className="font-semibold mb-2 text-white">Keyboard Shortcuts</h3>
+            <ul className="space-y-2">
+              <li className="flex justify-between items-center">
+                <span>Toggle Chat</span>
+                <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-xs font-sans text-white/80">Ctrl K</kbd>
+              </li>
+              <li className="flex justify-between items-center">
+                <span>Toggle Briefing</span>
+                <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-xs font-sans text-white/80">Ctrl B</kbd>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       {/* Tab to open briefing */}
       <button
         className="briefing-tab"
         onClick={() => setIsBriefingOpen(true)}
         aria-label="Open daily briefing"
         aria-expanded={isBriefingOpen}
+        title="Daily Brief (Ctrl+B)"
       >
         Daily Brief
       </button>
@@ -449,11 +498,8 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
           </svg>
         </button>
         <div className="briefing-drawer-scroll-area">
-          <div className="eyebrow">Daily briefing</div>
-          <h1 id="briefing-title">A clearer place to start</h1>
-          <p className="panel-intro">
-            A short list of the email and calendar items most worth your attention.
-          </p>
+          <div className="eyebrow" style={{ marginBottom: "24px" }}>Daily briefing</div>
+
 
           {briefingState === "loading" && (
             <div
@@ -816,14 +862,14 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                               )}
                               {item.metadata.scheduleProposal.event.reminderMinutes !==
                                 undefined && (
-                                <div>
-                                  <dt>Reminder</dt>
-                                  <dd>
-                                    {item.metadata.scheduleProposal.event.reminderMinutes} minutes
-                                    before
-                                  </dd>
-                                </div>
-                              )}
+                                  <div>
+                                    <dt>Reminder</dt>
+                                    <dd>
+                                      {item.metadata.scheduleProposal.event.reminderMinutes} minutes
+                                      before
+                                    </dd>
+                                  </div>
+                                )}
                               <div>
                                 <dt>Inviting</dt>
                                 <dd>

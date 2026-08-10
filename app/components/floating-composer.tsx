@@ -141,6 +141,7 @@ export function FloatingComposer({
         onClick={() => {
           if (isMinimized) setIsMinimized(false);
         }}
+        title={isMinimized ? "Chat (Ctrl+K)" : undefined}
       >
         {/* Minimized Content */}
         {isMinimized ? (
