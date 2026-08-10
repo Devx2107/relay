@@ -19,7 +19,7 @@ export function Navbar({ user }: NavbarProps) {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
-      <div className="mx-auto flex max-w-5xl items-center justify-between rounded-full border border-white/10 bg-white/5 px-4 py-3 shadow-lg backdrop-blur-md">
+      <div className="mx-auto flex max-w-5xl items-center justify-between rounded-full border border-white/10 bg-black/20 px-4 py-3 shadow-lg backdrop-blur-md">
         <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
             <svg

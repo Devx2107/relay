@@ -5,7 +5,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen relative overflow-hidden bg-black">
       {/* Background layer */}
-      <div className="absolute inset-0 z-0 pointer-events-auto">
+      <div className="fixed inset-0 z-0 pointer-events-auto">
         <GradientBlinds
           gradientColors={["#FF9FFC", "#5227FF"]}
           angle={20}
@@ -31,7 +31,7 @@ export default function Home() {
         <div className="pointer-events-auto mt-4">
           <Link
             href="/console"
-            className="inline-block px-10 py-4 rounded-full font-medium text-white shadow-lg backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:shadow-xl hover:scale-105"
+            className="inline-block px-10 py-4 rounded-full font-medium text-white shadow-lg backdrop-blur-md bg-black/10 border border-white/20 hover:bg-black/20 transition-all duration-300 hover:shadow-xl hover:scale-105"
           >
             Access Console
           </Link>

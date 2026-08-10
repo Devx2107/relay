@@ -125,6 +125,7 @@ function formatScheduleTime(value: string, timeZone: string): string {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function CommandConsole({ email }: CommandConsoleProps) {
   const [command, setCommand] = useState("");
+  const [isBriefingOpen, setIsBriefingOpen] = useState(false);
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null);
   const [briefingState, setBriefingState] = useState<BriefingState>("loading");
   const [briefingError, setBriefingError] = useState("The briefing could not be loaded.");
@@ -154,6 +155,16 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
 
     void loadBriefing();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isBriefingOpen) {
+        setIsBriefingOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isBriefingOpen]);
 
   async function loadBriefing() {
     setBriefingState("loading");
@@ -382,13 +393,33 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
         </div>
       )}
 
-      <div className="console-grid">
-        <section className="briefing-panel" aria-labelledby="briefing-title">
+      {/* Tab to open briefing */}
+      <button 
+        className="briefing-tab" 
+        onClick={() => setIsBriefingOpen(true)}
+        aria-label="Open daily briefing"
+        aria-expanded={isBriefingOpen}
+      >
+        Daily Brief
+      </button>
+
+      <section className={`briefing-drawer ${isBriefingOpen ? "open" : ""}`} aria-labelledby="briefing-title">
+        <button 
+          className="briefing-close-btn" 
+          onClick={() => setIsBriefingOpen(false)}
+          aria-label="Close daily briefing"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <div className="briefing-drawer-scroll-area">
           <div className="eyebrow">Daily briefing</div>
           <h1 id="briefing-title">A clearer place to start</h1>
-          <p className="panel-intro">
-            A short list of the email and calendar items most worth your attention.
-          </p>
+        <p className="panel-intro">
+          A short list of the email and calendar items most worth your attention.
+        </p>
 
           {briefingState === "loading" && (
             <div
@@ -471,9 +502,10 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
               )}
             </div>
           )}
+        </div>
         </section>
 
-        <aside className="context-panel" aria-labelledby="context-title">
+        <aside className="context-panel centered-context" aria-labelledby="context-title">
           <div className="eyebrow">Workspace</div>
           <h2 id="context-title">A single place to think clearly.</h2>
 
@@ -948,8 +980,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
               </div>
             </>
           )}
-        </aside>
-      </div>
+      </aside>
 
       <FloatingComposer
         command={command}

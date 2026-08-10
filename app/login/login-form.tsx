@@ -15,9 +15,9 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col relative overflow-hidden bg-black">
+    <div className="flex min-h-screen w-full flex-col relative overflow-hidden bg-black">
       {/* Background layer */}
-      <div className="absolute inset-0 z-0 pointer-events-auto">
+      <div className="fixed inset-0 z-0 pointer-events-auto">
         <GradientBlinds
           gradientColors={["#FF9FFC", "#5227FF"]}
           angle={20}
