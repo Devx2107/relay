@@ -170,6 +170,17 @@ describe("agent contracts", () => {
       ok: true,
       intent: { kind: "triage", parameters: { source: "calendar", limit: undefined } },
     });
+    expect(parseCommand("show my upcoming meetings")).toEqual({
+      ok: true,
+      intent: { kind: "triage", parameters: { source: "calendar", limit: undefined } },
+    });
+    expect(parseCommand("Cancel this meeting")).toEqual({
+      ok: true,
+      intent: {
+        kind: "triage",
+        parameters: { source: "calendar", limit: undefined, calendarAction: "cancel" },
+      },
+    });
     expect(
       parseCommand("Schedule a meeting with A@Example.com and a@example.com tomorrow"),
     ).toEqual({
@@ -236,6 +247,19 @@ describe("agent contracts", () => {
       intent: {
         kind: "triage",
         parameters: { source: "email", limit: 2 },
+      },
+    });
+  });
+
+  it("extracts recurring and reminder scheduling options", () => {
+    expect(parseCommand("Schedule tomorrow at 9 am every week for 4 occurrences, remind me 15 minutes before")).toMatchObject({
+      ok: true,
+      intent: {
+        parameters: {
+          recurrence: "recurring",
+          recurrenceRule: "RRULE:FREQ=WEEKLY;COUNT=4",
+          reminderMinutes: 15,
+        },
       },
     });
   });

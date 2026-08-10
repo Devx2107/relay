@@ -97,6 +97,8 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
   const location = event.location;
   const description = event.description;
   const recurrence = event.recurrence;
+  const recurrenceRule = event.recurrenceRule;
+  const reminderMinutes = event.reminderMinutes;
   const rankValues = value.alternatives;
   if (
     !Number.isFinite(Date.parse(start)) ||
@@ -120,6 +122,13 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
         description.trim().length === 0 ||
         description.length > 2000)) ||
     (recurrence !== undefined && recurrence !== "one_off" && recurrence !== "recurring")
+    ||
+    (recurrenceRule !== undefined &&
+      (typeof recurrenceRule !== "string" ||
+        !/^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY)(?:;COUNT=\d{1,3})?$/.test(recurrenceRule)))
+    ||
+    (reminderMinutes !== undefined &&
+      (!Number.isInteger(reminderMinutes) || reminderMinutes < 0 || reminderMinutes > 40320))
   ) {
     throw new SchedulingExecutionError("The scheduling proposal has invalid event details.");
   }
@@ -165,6 +174,8 @@ export function parseStoredSchedulingProposal(value: unknown): SchedulingProposa
       ...(location ? { location: location.trim() } : {}),
       ...(description ? { description: description.trim() } : {}),
       ...(recurrence ? { recurrence } : {}),
+      ...(recurrenceRule ? { recurrenceRule } : {}),
+      ...(reminderMinutes !== undefined ? { reminderMinutes } : {}),
     },
     invitation: { attendees: [...invitation.attendees] },
     alternatives,
@@ -181,6 +192,17 @@ export function calendarCreateArgs(proposal: SchedulingProposal, requestId: stri
       end: { dateTime: proposal.event.end, timeZone: proposal.event.timeZone },
       ...(proposal.event.location ? { location: proposal.event.location } : {}),
       ...(proposal.event.description ? { description: proposal.event.description } : {}),
+      ...(proposal.event.recurrenceRule
+        ? { recurrence: [proposal.event.recurrenceRule] }
+        : {}),
+      ...(proposal.event.reminderMinutes !== undefined
+        ? {
+            reminders: {
+              useDefault: false,
+              overrides: [{ method: "popup", minutes: proposal.event.reminderMinutes }],
+            },
+          }
+        : {}),
       attendees: proposal.invitation.attendees.map((email) => ({ email })),
       conferenceData: {
         createRequest: {

@@ -1,9 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 import { GmailService } from "../lib/gmail";
 import { MockIntegrationService } from "../lib/integration-mock";
-import { ToolRegistry, ToolRegistryError, type ToolDefinition } from "../lib/agent/tools";
+import {
+  TOOL_DEFINITIONS,
+  ToolRegistry,
+  ToolRegistryError,
+  type ToolDefinition,
+} from "../lib/agent/tools";
 
 describe("ToolRegistry", () => {
+  it("exposes approval-gated calendar cancellation and rescheduling tools", () => {
+    expect(TOOL_DEFINITIONS.find((tool) => tool.id === "calendar.delete_event")).toMatchObject({
+      operation: "write",
+      action: "api.events.delete",
+    });
+    expect(TOOL_DEFINITIONS.find((tool) => tool.id === "calendar.modify_event")).toMatchObject({
+      operation: "write",
+      argumentNames: expect.arrayContaining(["id", "event"]),
+    });
+  });
   it("exposes the verified current read mappings", () => {
     const registry = new ToolRegistry(new MockIntegrationService());
 

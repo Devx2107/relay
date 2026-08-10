@@ -136,8 +136,17 @@ export const TOOL_DEFINITIONS = [
     action: "api.events.update",
     operation: "write",
     availability: "available",
-    description: "Modify a calendar event.",
-    argumentNames: ["eventId", "changes"],
+    description: "Reschedule or modify a calendar event.",
+    argumentNames: ["calendarId", "id", "event", "sendUpdates", "conferenceDataVersion"],
+  },
+  {
+    id: "calendar.delete_event",
+    plugin: "googlecalendar",
+    action: "api.events.delete",
+    operation: "write",
+    availability: "available",
+    description: "Cancel a calendar event.",
+    argumentNames: ["calendarId", "id", "sendUpdates"],
   },
 ] as const satisfies readonly ToolDefinition[];
 

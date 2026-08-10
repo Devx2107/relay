@@ -28,6 +28,7 @@ export interface TriageIntent {
   parameters: {
     source?: "email" | "calendar" | "all";
     limit?: number;
+    calendarAction?: "cancel" | "reschedule";
   };
 }
 
@@ -41,6 +42,8 @@ export interface ScheduleIntent {
     location?: string;
     agenda?: string;
     recurrence?: "one_off" | "recurring";
+    recurrenceRule?: string;
+    reminderMinutes?: number;
     options: ScheduleOptions;
   };
 }
@@ -179,6 +182,7 @@ export function parseAgentIntent(value: unknown): AgentIntent {
   if (value.kind === "triage") {
     const source = value.parameters.source;
     const limit = value.parameters.limit;
+    const calendarAction = value.parameters.calendarAction;
     let parsedLimit: number | undefined;
     if (limit !== undefined) {
       if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > 100) {
@@ -191,7 +195,17 @@ export function parseAgentIntent(value: unknown): AgentIntent {
     if (source !== undefined && source !== "email" && source !== "calendar" && source !== "all") {
       throw new ContractValidationError("triage.parameters.source is invalid");
     }
-    return { kind: "triage", parameters: { source, limit: parsedLimit } };
+    if (calendarAction !== undefined && calendarAction !== "cancel" && calendarAction !== "reschedule") {
+      throw new ContractValidationError("triage.parameters.calendarAction is invalid");
+    }
+    return {
+      kind: "triage",
+      parameters: {
+        source,
+        limit: parsedLimit,
+        ...(calendarAction !== undefined ? { calendarAction } : {}),
+      },
+    };
   }
 
   const request = requiredString(value.parameters.request, "schedule.parameters.request", 2000);
@@ -201,6 +215,8 @@ export function parseAgentIntent(value: unknown): AgentIntent {
   const location = value.parameters.location;
   const agenda = value.parameters.agenda;
   const recurrence = value.parameters.recurrence;
+  const recurrenceRule = value.parameters.recurrenceRule;
+  const reminderMinutes = value.parameters.reminderMinutes;
   const options = value.parameters.options;
   if (
     attendeeStatus !== "provided" &&
@@ -224,6 +240,19 @@ export function parseAgentIntent(value: unknown): AgentIntent {
   }
   if (recurrence !== undefined && recurrence !== "one_off" && recurrence !== "recurring") {
     throw new ContractValidationError("schedule.parameters.recurrence is invalid");
+  }
+  if (
+    recurrenceRule !== undefined &&
+    (typeof recurrenceRule !== "string" ||
+      !/^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY)(?:;COUNT=\d{1,3})?$/.test(recurrenceRule))
+  ) {
+    throw new ContractValidationError("schedule.parameters.recurrenceRule is invalid");
+  }
+  if (
+    reminderMinutes !== undefined &&
+    (!Number.isInteger(reminderMinutes) || reminderMinutes < 0 || reminderMinutes > 40320)
+  ) {
+    throw new ContractValidationError("schedule.parameters.reminderMinutes is invalid");
   }
   if (
     attendees !== undefined &&
@@ -296,9 +325,13 @@ export function parseAgentIntent(value: unknown): AgentIntent {
       attendees: attendees as string[] | undefined,
       attendeeStatus,
       unresolvedAttendees: unresolvedAttendees as string[] | undefined,
-      location: location as string | undefined,
-      agenda: agenda as string | undefined,
-      recurrence: recurrence as "one_off" | "recurring" | undefined,
+      ...(location !== undefined ? { location: location as string } : {}),
+      ...(agenda !== undefined ? { agenda: agenda as string } : {}),
+      ...(recurrence !== undefined
+        ? { recurrence: recurrence as "one_off" | "recurring" }
+        : {}),
+      ...(recurrenceRule !== undefined ? { recurrenceRule: recurrenceRule as string } : {}),
+      ...(reminderMinutes !== undefined ? { reminderMinutes: reminderMinutes as number } : {}),
       options: options as unknown as ScheduleOptions,
     },
   };

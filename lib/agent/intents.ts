@@ -138,7 +138,22 @@ function extractScheduleDetails(input: string) {
     : /\brecurr(?:ing|ence)|every\s+(?:day|week|month)\b/i.test(input)
       ? "recurring"
       : undefined;
-  return { location, agenda, recurrence };
+  const recurrenceMatch = input.match(
+    /\bevery\s+(day|week|month)(?:\s+for\s+(\d{1,3})\s+(?:times?|occurrences?))?\b/i,
+  );
+  const recurrenceRule = recurrenceMatch
+    ? `RRULE:FREQ=${recurrenceMatch[1].toUpperCase()}${recurrenceMatch[2] ? `;COUNT=${recurrenceMatch[2]}` : ""}`
+    : undefined;
+  const reminderMinutes = Number(
+    input.match(/\b(?:remind|reminder)\s+(?:me\s+)?(\d{1,5})\s+minutes?\s+before\b/i)?.[1],
+  );
+  return {
+    location,
+    agenda,
+    recurrence: recurrenceRule ? "recurring" : recurrence,
+    recurrenceRule,
+    reminderMinutes: Number.isInteger(reminderMinutes) ? reminderMinutes : undefined,
+  };
 }
 
 export function isHelpCommand(command: string): boolean {
@@ -172,13 +187,25 @@ function isTriageCommand(command: string, scheduling = false): boolean {
       command,
     );
   }
-  return /\b(triage|inbox|unread|priorit(?:y|ies)|what\s+needs\s+attention|upcoming\s+events?|calendar|emails?|mail)\b/i.test(
+  return /\b(triage|inbox|unread|priorit(?:y|ies)|what\s+needs\s+attention|upcoming\s+(?:events?|meetings?)|calendar|emails?|mail)\b/i.test(
+    command,
+  ) || /\b(?:cancel|reschedul\w*|move)\s+(?:(?:this|that|the)\s+)?(?:meeting|event)\b/i.test(
     command,
   );
 }
 
 function isUnsupportedAction(command: string): boolean {
-  return /\b(send|reply|archive|delete|ignore|snooze|cancel)\b/i.test(command);
+  return /\b(send|reply|archive|delete|ignore|snooze)\b/i.test(command);
+}
+
+function calendarAction(command: string): "cancel" | "reschedule" | undefined {
+  if (/\b(?:cancel|delete|remove)\s+(?:(?:this|that|the)\s+)?(?:meeting|event)\b/i.test(command)) {
+    return "cancel";
+  }
+  if (/\b(?:reschedul\w*|move)\s+(?:(?:this|that|the)\s+)?(?:meeting|event)\b/i.test(command)) {
+    return "reschedule";
+  }
+  return undefined;
 }
 
 function canInheritHistory(command: string): boolean {
@@ -218,11 +245,16 @@ export function parseCommand(
     }
 
     if (triage) {
+      const action = calendarAction(command);
       return {
         ok: true,
         intent: parseAgentIntent({
           kind: "triage",
-          parameters: { source: triageSource(command), limit: triageLimit(command) },
+          parameters: {
+            source: triageSource(command),
+            limit: triageLimit(command),
+            ...(action ? { calendarAction: action } : {}),
+          },
         }),
       };
     }

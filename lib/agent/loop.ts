@@ -80,6 +80,56 @@ function availabilityPayloadDiagnostics(value: unknown) {
   };
 }
 
+function firstCalendarEventForAction(
+  messages: readonly GroqMessage[],
+): { calendarId: string; id: string } | undefined {
+  const findEvent = (value: unknown): Record<string, unknown> | undefined => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const event = findEvent(item);
+        if (event) return event;
+      }
+      return undefined;
+    }
+    if (!isRecord(value)) return undefined;
+    if (
+      typeof value.id === "string" &&
+      value.id.length > 0 &&
+      (isRecord(value.start) || isRecord(value.end) || typeof value.summary === "string")
+    ) {
+      return value;
+    }
+    for (const key of ["items", "events", "data", "result"]) {
+      const event = findEvent(value[key]);
+      if (event) return event;
+    }
+    return undefined;
+  };
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (
+      message.role !== "tool" ||
+      (message.name !== "calendar.get_upcoming_events" && message.name !== "calendar.get_event")
+    ) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(message.content ?? "");
+      const event = findEvent(parsed);
+      if (event) {
+        return {
+          calendarId: typeof event.calendarId === "string" ? event.calendarId : "primary",
+          id: event.id as string,
+        };
+      }
+    } catch {
+      // Continue looking for a usable calendar read result.
+    }
+  }
+  return undefined;
+}
+
 export interface AgentLoopOptions {
   runId: string;
   tenantId: string;
@@ -110,7 +160,7 @@ export class AgentLoop {
         "I can help with two things: triage your inbox and schedule Google Calendar meetings. " +
         "For triage, ask me to review, summarize, archive, reply, or snooze email items; write actions require approval. " +
         "For scheduling, ask me to check your primary calendar and create a Google Calendar event with attendees, time zones, location, agenda, one-off details, and Google Meet; event creation requires approval. " +
-        "I do not currently support rescheduling, cancellation, recurring events, reminders, or cross-calendar synchronization.";
+        "I can also reschedule or cancel existing calendar events after reading the relevant event and receiving your approval. Recurring events and reminders are supported; cross-calendar synchronization is not yet supported.";
       await this.options.onProgress({
         runId: this.options.runId,
         status: "completed",
@@ -247,6 +297,10 @@ export class AgentLoop {
     }
 
     let planResponse;
+    const calendarManagementRead =
+      intent.kind === "triage" &&
+      intent.parameters.source === "calendar" &&
+      Boolean(intent.parameters.calendarAction);
     if (explicitAvailabilityArgs) {
       planResponse = {
         toolCalls: [
@@ -256,6 +310,26 @@ export class AgentLoop {
             function: {
               name: "calendar.check_availability",
               arguments: JSON.stringify(explicitAvailabilityArgs),
+            },
+          },
+        ],
+        usedFallback: true,
+      };
+    } else if (calendarManagementRead) {
+      planResponse = {
+        toolCalls: [
+          {
+            id: this.options.runId + ":calendar-events",
+            type: "function" as const,
+            function: {
+              name: "calendar.get_upcoming_events",
+              arguments: JSON.stringify({
+                calendarId: "primary",
+                timeMin: new Date().toISOString(),
+                maxResults: 50,
+                singleEvents: true,
+                orderBy: "startTime",
+              }),
             },
           },
         ],
@@ -587,7 +661,7 @@ export class AgentLoop {
     // Triage commands are read-only. Consequential triage actions are created
     // through the dedicated triage-action service, where the item owner,
     // source, status, and arguments are revalidated before approval.
-    if (intent.kind === "triage") {
+    if (intent.kind === "triage" && !intent.parameters.calendarAction) {
       let summary = planResponse.text;
       if (!summary) {
         try {
@@ -677,16 +751,50 @@ export class AgentLoop {
     messages.push({
       role: "user",
       content:
-        "Based on the read data, propose the next action using write tools. If no write action is needed, provide a final summary.",
+        intent.kind === "triage" && intent.parameters.calendarAction === "cancel"
+          ? "The user requested cancellation of the referenced calendar meeting or event. Propose calendar.delete_event with the exact calendarId and event id from the read result. This is consequential and must remain pending approval."
+          : intent.kind === "triage" && intent.parameters.calendarAction === "reschedule"
+            ? "The user requested rescheduling of the referenced calendar meeting or event. Propose calendar.modify_event using the exact calendarId and event id from the read result, preserving existing event details unless the user supplied changes. This is consequential and must remain pending approval."
+            : "Based on the read data, propose the next action using write tools. If no write action is needed, provide a final summary.",
     });
 
     let proposeResponse;
     try {
-      proposeResponse = await this.options.groq.complete(
-        messages,
-        "I cannot propose an action at this time.",
-        writeTools,
-      );
+      const forcedWriteTool =
+        intent.kind === "triage" && intent.parameters.calendarAction === "cancel"
+          ? "calendar.delete_event"
+          : intent.kind === "triage" && intent.parameters.calendarAction === "reschedule"
+            ? "calendar.modify_event"
+          : undefined;
+      const cancelEvent =
+        intent.kind === "triage" && intent.parameters.calendarAction === "cancel"
+          ? firstCalendarEventForAction(messages)
+          : undefined;
+      proposeResponse = cancelEvent
+        ? {
+            text: "",
+            usedFallback: false,
+            toolCalls: [
+              {
+                id: this.options.runId + ":calendar-delete",
+                type: "function" as const,
+                function: {
+                  name: "calendar.delete_event",
+                  arguments: JSON.stringify({
+                    calendarId: cancelEvent.calendarId,
+                    id: cancelEvent.id,
+                    sendUpdates: "all",
+                  }),
+                },
+              },
+            ],
+          }
+        : await this.options.groq.complete(
+            messages,
+            "I cannot propose an action at this time.",
+            writeTools,
+            forcedWriteTool,
+          );
     } catch {
       this.failRun(
         {
@@ -845,9 +953,19 @@ export class AgentLoop {
   }
 
   private toGroqTool(def: ToolDefinition): GroqTool {
-    const optional = new Set(["calendarId", "maxResults", "singleEvents", "orderBy", "format"]);
+    const optional = new Set([
+      "calendarId",
+      "maxResults",
+      "singleEvents",
+      "orderBy",
+      "format",
+      "sendUpdates",
+      "conferenceDataVersion",
+    ]);
     const typeByName: Record<string, Record<string, unknown>> = {
       maxResults: { type: "integer", minimum: 1, maximum: 100 },
+      conferenceDataVersion: { type: "integer", minimum: 1, maximum: 1 },
+      sendUpdates: { type: "string", enum: ["all", "externalOnly", "none"] },
       timeMin: { type: "string", format: "date-time" },
       timeMax: { type: "string", format: "date-time" },
       singleEvents: { type: "boolean" },
@@ -862,6 +980,7 @@ export class AgentLoop {
       },
       attendees: { type: "array", items: { type: "string" } },
       changes: { type: "object" },
+      event: { type: "object" },
     };
 
     return {

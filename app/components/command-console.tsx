@@ -68,6 +68,8 @@ interface ScheduleProposal {
     location?: string;
     description?: string;
     recurrence?: "one_off" | "recurring";
+    recurrenceRule?: string;
+    reminderMinutes?: number;
   };
   invitation: { attendees: string[] };
   alternatives: Array<{ start: string; end: string; timeZone: string }>;
@@ -652,6 +654,15 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
                                       {item.metadata.scheduleProposal.event.recurrence === "one_off"
                                         ? "One-off"
                                         : "Recurring"}
+                                    </dd>
+                                  </div>
+                                )}
+                                {item.metadata.scheduleProposal.event.reminderMinutes !== undefined && (
+                                  <div>
+                                    <dt>Reminder</dt>
+                                    <dd>
+                                      {item.metadata.scheduleProposal.event.reminderMinutes} minutes
+                                      before
                                     </dd>
                                   </div>
                                 )}

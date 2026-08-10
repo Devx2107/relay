@@ -1,47 +1,46 @@
 # Current Task
 
-## Current Task: TRI-014 responsive persistent daily briefing
+## Current Task: AGT-016 recognize calendar management follow-ups
 
 ## Goal
 
-Make the daily Gmail/Calendar briefing faster and keep persisted triage state consistent across refreshes.
+Recognize contextual requests such as “cancel this meeting” as calendar management commands.
 
 ## Context
 
-The briefing retrieves Gmail and Calendar in parallel, but classification is serial and persistence upserts refreshed rows as pending. This causes visible lag and can resurrect dismissed or snoozed items.
+The parser recognizes calendar reads but rejects cancellation/rescheduling language when the user refers to the previously discussed meeting.
 
 ## Requirements
 
-- Classify independent briefing candidates with bounded concurrency.
-- Preserve existing triage status during refresh upserts.
-- Reconcile disappeared items only for sources fetched successfully.
-- Keep unavailable sources and their stored items intact.
+- Treat cancellation/rescheduling requests referring to meetings or events as calendar triage.
+- Route calendar cancellation through the existing read, proposal, and approval pipeline.
+- Force the appropriate calendar write tool during proposal generation.
+- Build cancellation arguments from the verified calendar read result when available.
+- Preserve read-only behavior for ordinary calendar triage.
+- Add regression coverage for the new wording and the existing upcoming-meetings wording.
 
 ## Acceptance Criteria
 
-- Daily briefing classification no longer waits serially for every candidate.
-- Dismissed/snoozed items are not reset to pending by refresh.
-- Removed source items are reconciled without deleting data.
+- “cancel this meeting” parses as calendar triage.
+- Calendar deletion is proposed only after the event is read and requires approval.
+- Existing calendar wording remains unchanged.
 
 ## Relevant Areas
 
-- `lib/triage-briefing.ts`
-- `lib/triage-ranking.ts`
-- `lib/triage-items.ts`
-- `tests/triage-briefing.test.ts`
-- `tests/triage-items.test.ts`
+- `lib/agent/intents.ts`
+- `tests/agent.test.ts`
 
 ## Constraints
 
 - Do not call external services from UI code.
-- Do not bypass the tool registry or approval requirement.
-- Keep the change limited to planner reliability.
+- Keep calendar reads read-only and approval-free.
+- Keep the change limited to parser reliability.
 
 ## Plan
 
-1. Parallelize bounded candidate classification.
-2. Preserve statuses and reconcile stale source items.
-3. Add regression coverage and run checks.
+1. Extend the calendar triage wording.
+2. Add regression coverage.
+3. Run focused checks where available.
 
 ## Verification
 
@@ -49,7 +48,7 @@ The briefing retrieves Gmail and Calendar in parallel, but classification is ser
 - [x] Lint
 - [x] Typecheck
 - [ ] Focused tests
-- [x] Build
+- [ ] Build
 - [x] Security and scope review
 
 ## Review

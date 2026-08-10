@@ -26,6 +26,8 @@ export interface SchedulingProposal {
     location?: string;
     description?: string;
     recurrence?: "one_off" | "recurring";
+    recurrenceRule?: string;
+    reminderMinutes?: number;
   };
   invitation: {
     attendees: string[];
@@ -137,6 +139,12 @@ export function buildSchedulingProposal(
       ...(intent.parameters.location ? { location: intent.parameters.location } : {}),
       ...(intent.parameters.agenda ? { description: intent.parameters.agenda } : {}),
       ...(intent.parameters.recurrence ? { recurrence: intent.parameters.recurrence } : {}),
+      ...(intent.parameters.recurrenceRule
+        ? { recurrenceRule: intent.parameters.recurrenceRule }
+        : {}),
+      ...(intent.parameters.reminderMinutes !== undefined
+        ? { reminderMinutes: intent.parameters.reminderMinutes }
+        : {}),
     },
     invitation: { attendees: [...(attendees ?? [])] },
     alternatives: slots.slice(1).map((slot) => ({ ...slot })),
