@@ -174,6 +174,14 @@ describe("agent contracts", () => {
       ok: true,
       intent: { kind: "triage", parameters: { source: "calendar", limit: undefined } },
     });
+    expect(parseCommand("show my recent meetings")).toEqual({
+      ok: true,
+      intent: { kind: "triage", parameters: { source: "calendar", limit: undefined } },
+    });
+    expect(parseCommand("what do I have for tomorrow")).toEqual({
+      ok: true,
+      intent: { kind: "triage", parameters: { source: "calendar", limit: undefined } },
+    });
     expect(parseCommand("Cancel this meeting")).toEqual({
       ok: true,
       intent: {

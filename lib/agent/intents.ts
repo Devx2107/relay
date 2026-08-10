@@ -83,9 +83,9 @@ function extractAttendees(input: string):
 }
 
 function triageSource(command: string): "email" | "calendar" | "all" {
-  const hasCalendarTerms = /\b(calendar|calendars|event|events|meeting|meetings|schedule)\b/i.test(
-    command,
-  );
+  const hasCalendarTerms =
+    /\b(calendar|calendars|event|events|meeting|meetings|schedule)\b/i.test(command) ||
+    /\bwhat\s+do\s+i\s+have\s+for\s+(?:today|tomorrow|this\s+week|next\s+week)\b/i.test(command);
   const hasEmailTerms = /\b(email|emails|mail|inbox|inboxes|unread|thread|threads)\b/i.test(
     command,
   );
@@ -188,7 +188,10 @@ function isTriageCommand(command: string, scheduling = false): boolean {
     );
   }
   return (
-    /\b(triage|inbox|unread|priorit(?:y|ies)|what\s+needs\s+attention|upcoming\s+(?:events?|meetings?)|calendar|emails?|mail)\b/i.test(
+    /\b(triage|inbox|unread|priorit(?:y|ies)|what\s+needs\s+attention|recent\s+(?:events?|meetings?)|upcoming\s+(?:events?|meetings?)|calendar|emails?|mail)\b/i.test(
+      command,
+    ) ||
+    /\bwhat\s+do\s+i\s+have\s+for\s+(?:today|tomorrow|this\s+week|next\s+week)\b/i.test(
       command,
     ) ||
     /\b(?:cancel|reschedul\w*|move)\s+(?:(?:this|that|the)\s+)?(?:meeting|event)\b/i.test(command)
