@@ -1,6 +1,8 @@
 # Relay
 
-Relay is an AI-native command console for email triage and calendar scheduling. The server-side Corsair boundary for Gmail and Google Calendar is now scaffolded; product workflows and authenticated user sessions are not implemented yet.
+Relay is an AI-native command console for email triage and calendar scheduling. It supports authenticated user sessions, server-side Gmail and Google Calendar integrations through Corsair, read-only triage, scheduling proposals, and approval-gated actions.
+
+The application keeps external integrations behind server routes and services. Supabase provides authentication and persistence for users, conversations, messages, triage items, and agent runs. Read operations can run automatically; consequential actions require explicit server-enforced approval before execution and verification.
 
 ## Quick start
 
@@ -21,4 +23,4 @@ Run the full local quality gate with `npm run verify`.
 - Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the proposed design.
 - Track work in [tasks/BACKLOG.md](tasks/BACKLOG.md) and [tasks/CURRENT.md](tasks/CURRENT.md).
 
-Product workflow implementation remains paused until the proposed structure, authentication, and approval boundaries are approved.
+The main product workflows are implemented in the Next.js App Router application. See the architecture and workflow documentation for the current boundaries and supported behavior.
