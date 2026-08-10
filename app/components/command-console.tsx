@@ -407,7 +407,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
   );
 
   return (
-    <main className="console-shell">
+    <main className={`console-shell ${isBriefingOpen ? "drawer-open" : ""}`}>
       {sessionExpired && (
         <div className="session-banner" role="alert">
           <span>Your session expired. Sign in again to reconnect Relay.</span>
@@ -1028,6 +1028,7 @@ export default function CommandConsole({ email }: CommandConsoleProps) {
         isSubmitting={isSubmitting}
         sessionExpired={sessionExpired}
         commandError={commandError}
+        isBriefingOpen={isBriefingOpen}
       />
     </main>
   );

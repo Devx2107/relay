@@ -9,7 +9,6 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
 });
 
-
 export const metadata: Metadata = {
   title: "Relay",
   description: "A calm command center for email, calendar, and the work between them.",

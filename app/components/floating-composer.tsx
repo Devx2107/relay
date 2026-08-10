@@ -9,6 +9,7 @@ interface FloatingComposerProps {
   isSubmitting: boolean;
   sessionExpired: boolean;
   commandError: string | null;
+  isBriefingOpen?: boolean;
 }
 
 export function FloatingComposer({
@@ -18,6 +19,7 @@ export function FloatingComposer({
   isSubmitting,
   sessionExpired,
   commandError,
+  isBriefingOpen = false,
 }: FloatingComposerProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const commandInputRef = useRef<HTMLTextAreaElement>(null);
@@ -122,7 +124,13 @@ export function FloatingComposer({
   }, []);
 
   return (
-    <div className="fixed bottom-8 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center justify-end w-full max-w-2xl px-4 pointer-events-none">
+    <div
+      className="fixed bottom-8 left-1/2 z-50 flex flex-col items-center justify-end w-full max-w-2xl px-4 pointer-events-none"
+      style={{
+        transform: `translateX(calc(-50% + ${isBriefingOpen ? "190px" : "0px"}))`,
+        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
+    >
       {/* Animated Pill Container */}
       <div
         className={`pointer-events-auto overflow-hidden border border-white/10 shadow-2xl backdrop-blur-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${

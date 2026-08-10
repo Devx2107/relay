@@ -149,6 +149,11 @@ textarea:focus-visible {
 .centered-context {
   max-width: 800px;
   margin: 0 auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.console-shell.drawer-open .centered-context {
+  transform: translateX(190px);
 }
 
 .briefing-drawer {
@@ -686,6 +691,46 @@ textarea::placeholder {
   font-size: 13px;
   color: var(--muted);
   margin-bottom: 8px;
+}
+
+.approval-section label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.approval-section select {
+  width: 100%;
+  background-color: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 36px 8px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.approval-section select option {
+  background-color: var(--card);
+  color: var(--ink);
+}
+
+.approval-section select:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.approval-section select:focus {
+  outline: none;
+  border-color: var(--teal);
 }
 
 .approval-heading {
